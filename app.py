@@ -812,8 +812,8 @@ elif menu == "ℹ️ About":
     st.markdown("""
     ### 💪 Smart Fitness & Calorie Tracker Chatbot
     
-    **Version:** 1.0.0
-    **Tech Stack:** Python, Streamlit, SQLite, Scikit-learn, Plotly, OpenAI GPT
+    **Version:** 2.0.0
+    **Tech Stack:** Python, Streamlit, SQLite, Scikit-learn, Plotly, Groq API
     
     ---
     
@@ -821,9 +821,13 @@ elif menu == "ℹ️ About":
     
     - **Personalized Calorie Tracking:** Calculates BMR, TDEE, and daily targets based on your profile
     - **Natural Language Food Logging:** Just describe what you ate
-    - **Activity Tracking:** Log workouts with automatic calorie burn calculation
-    - **AI-Powered Chatbot:** Get personalized fitness advice and recommendations
-    - **Machine Learning Predictor:** Predicts calorie burn during exercise
+    - **Activity Tracking:** Log workouts with automatic calorie burn calculation (MET formula)
+    - **AI-Powered Chatbot:** Get personalized fitness advice (Groq Llama 3.3 70B or rule-based fallback)
+    - **Machine Learning Predictor:** Predicts calorie burn during exercise (Random Forest Regressor)
+    - **Fitness Level Classifier:** Classify fitness level (A/B/C/D) using 3 ML algorithms:
+        - Random Forest (74.5% accuracy)
+        - XGBoost (76.4% accuracy)
+        - SVM (70.1% accuracy)
     - **Progress Dashboard:** Visual charts for weight and calorie trends
     
     ---
@@ -834,6 +838,7 @@ elif menu == "ℹ️ About":
     2. **Track Daily:** Log your meals and activities throughout the day
     3. **Monitor Progress:** Check your dashboard to see if you're on track
     4. **Get AI Advice:** Ask the chatbot any fitness-related questions
+    5. **Check Fitness Level:** Input your physical test results to get fitness classification
     
     ---
     
@@ -847,7 +852,19 @@ elif menu == "ℹ️ About":
     
     - **Calories Burned (MET):** (MET × 3.5 × weight) / 200 × minutes
     
-    - **Machine Learning:** Random Forest Regressor for calorie prediction
+    - **Machine Learning for Calorie Prediction:** Random Forest Regressor
+    
+    - **Machine Learning for Fitness Classification:** Random Forest, XGBoost, SVM with StandardScaler
+    
+    ---
+    
+    ### 📊 Dataset Information
+    
+    - **Food Dataset:** Auto-generated with common foods and calories
+    - **Exercise Dataset:** 2,000 synthetic samples for calorie prediction training
+    - **Fitness Classification Dataset:** Body Performance Data (13,393 samples) from Kaggle
+        - Features: age, gender, height, weight, body fat %, blood pressure, grip strength, flexibility, sit-ups, broad jump
+        - Target: 4 fitness classes (A, B, C, D)
     
     ---
     
@@ -858,25 +875,36 @@ elif menu == "ℹ️ About":
     - Update your weight weekly
     - Use the AI chatbot for personalized advice
     - Check your progress regularly to stay motivated
+    - For accurate fitness classification, input honest physical test results
     
     ---
     
     Made with ❤️ for Final Project
     """)
     
-    # Display dataset information
-    st.subheader("📊 Dataset Information")
-    try:
-        food_df = pd.read_csv('data/food_dataset.csv')
-        st.markdown(f"**Food Dataset:** {len(food_df)} food items with nutritional information")
-    except:
-        st.info("Food dataset will be created automatically when you start logging")
+    # Display dataset information (optional)
+    st.subheader("📁 Dataset Status")
+    col1, col2 = st.columns(2)
+    with col1:
+        try:
+            import pandas as pd
+            food_df = pd.read_csv('data/food_dataset.csv')
+            st.success(f"✅ Food dataset: {len(food_df)} items")
+        except:
+            st.info("📝 Food dataset will be created automatically")
+    with col2:
+        try:
+            exercise_df = pd.read_csv('data/exercise_dataset.csv')
+            st.success(f"✅ Exercise dataset: {len(exercise_df)} samples")
+        except:
+            st.info("📝 Exercise dataset will be created automatically")
     
+    # Cek dataset fitness
     try:
-        exercise_df = pd.read_csv('data/exercise_dataset.csv')
-        st.markdown(f"**Exercise Dataset:** {len(exercise_df)} workout records for ML training")
+        body_df = pd.read_csv('data/body_performance.csv')
+        st.success(f"✅ Body performance dataset: {len(body_df)} samples")
     except:
-        st.info("Exercise dataset will be created when ML model is trained")
+        st.warning("⚠️ Body performance dataset not found. Fitness classifier may not work.")
 
 # Run the app
 if __name__ == "__main__":
