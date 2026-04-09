@@ -104,8 +104,7 @@ st.sidebar.markdown(
 # Navigation menu
 menu = st.sidebar.radio(
     "📋 Menu",
-    ["🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", 
-     "📈 Progress", "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"]
+    ["🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log","🏋️ Fitness Level Classifier", "📈 Progress", "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"]
 )
 
 st.sidebar.markdown("---")
@@ -429,6 +428,153 @@ elif menu == "🏃 Activity Log":
         else:
             st.info("No activities logged yet. Start moving!")
 
+# Di dalam app.py, setelah menu "🏃 Activity Log" dan sebelum menu "📈 Progress"
+
+elif menu == "🏋️ Fitness Level Classifier":
+    st.markdown('<div class="main-header">🏋️ Klasifikasi Tingkat Kebugaran</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+        Masukkan data fisik dan hasil tes kebugaran Anda. Sistem akan memprediksi tingkat kebugaran 
+        menggunakan 3 algoritma Machine Learning: <strong>Random Forest, XGBoost, dan SVM</strong>.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Load model (cached)
+    @st.cache_resource
+    def load_models():
+        try:
+            from models import load_body_performance_model, train_body_performance_model
+            try:
+                models, encoders, scaler = load_body_performance_model()
+                return models, encoders, scaler, None
+            except:
+                models, encoders, scaler, target_encoder, _ = train_body_performance_model()
+                return models, encoders, scaler, None
+        except Exception as e:
+            st.error(f"Gagal memuat model: {str(e)}")
+            return None, None, None, None
+    
+    models, encoders, scaler, target_encoder = load_models()
+    
+    if models is not None:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            gender = st.selectbox("👤 Jenis Kelamin", ["Female", "Male"])
+            age = st.number_input("📅 Usia (tahun)", min_value=15, max_value=100, value=25)
+            height = st.number_input("📏 Tinggi Badan (cm)", min_value=100.0, max_value=250.0, value=170.0, step=0.5)
+            weight = st.number_input("⚖️ Berat Badan (kg)", min_value=30.0, max_value=200.0, value=70.0, step=0.5)
+            body_fat = st.slider("🧬 Persentase Lemak Tubuh (%)", min_value=5.0, max_value=50.0, value=20.0, step=0.5)
+        
+        with col2:
+            diastolic = st.number_input("❤️ Tekanan Darah Diastolik (mmHg)", min_value=40, max_value=120, value=80)
+            systolic = st.number_input("❤️ Tekanan Darah Sistolik (mmHg)", min_value=80, max_value=200, value=120)
+            gripForce = st.number_input("💪 Kekuatan Genggaman (kg)", min_value=10.0, max_value=100.0, value=40.0, step=0.5)
+            sit_bend = st.number_input("🧘 Kelenturan (sit and bend) cm", min_value=-20.0, max_value=50.0, value=15.0, step=0.5)
+            situps = st.number_input("🏃‍♂️ Sit-up per Menit", min_value=0, max_value=100, value=30)
+            broad_jump = st.number_input("🦵 Lompatan Lebar (cm)", min_value=50, max_value=300, value=150)
+        
+        st.markdown("---")
+        
+        # Pilihan algoritma
+        st.subheader("🤖 Pilih Algoritma")
+        algorithm = st.selectbox(
+            "Model Machine Learning",
+            ["random_forest", "xgboost", "svm"],
+            format_func=lambda x: {
+                "random_forest": "🌲 Random Forest (Akurasi ~75%)",
+                "xgboost": "⚡ XGBoost (Akurasi ~75%)",
+                "svm": "🎯 SVM - Support Vector Machine (Akurasi ~70%)"
+            }[x]
+        )
+        
+        if st.button("🔍 Prediksi Tingkat Kebugaran", use_container_width=True):
+            with st.spinner("Menganalisis data dengan model Machine Learning..."):
+                from models import predict_fitness_level
+                
+                input_data = {
+                    'gender': gender,
+                    'age': age,
+                    'height_cm': height,
+                    'weight_kg': weight,
+                    'body_fat': body_fat,
+                    'diastolic': diastolic,
+                    'systolic': systolic,
+                    'gripForce': gripForce,
+                    'sit_bend': sit_bend,
+                    'situps': situps,
+                    'broad_jump': broad_jump
+                }
+                
+                try:
+                    result, confidence, _ = predict_fitness_level(algorithm, input_data)
+                    
+                    # Tampilkan hasil prediksi dalam bentuk card
+                    st.markdown("---")
+                    st.subheader("📊 Hasil Klasifikasi")
+                    
+                    # Warna berdasarkan tingkat kebugaran
+                    if "Excellent" in result:
+                        bg_color = "#d4edda"
+                        border_color = "#28a745"
+                        icon = "🏆"
+                    elif "Good" in result:
+                        bg_color = "#d1ecf1"
+                        border_color = "#17a2b8"
+                        icon = "💪"
+                    elif "Average" in result:
+                        bg_color = "#fff3cd"
+                        border_color = "#ffc107"
+                        icon = "👍"
+                    else:
+                        bg_color = "#f8d7da"
+                        border_color = "#dc3545"
+                        icon = "⚠️"
+                    
+                    st.markdown(f"""
+                    <div style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
+                        <h3 style="margin: 0 0 0.5rem 0;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
+                        <p style="margin: 0;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Rekomendasi berdasarkan hasil
+                    st.subheader("📋 Rekomendasi")
+                    if "Excellent" in result:
+                        st.success("🎉 **Pertahankan!** Anda dalam kondisi bugar prima. Lanjutkan rutinitas olahraga dan pola makan sehat Anda.")
+                    elif "Good" in result:
+                        st.info("💪 **Bagus!** Tingkat kebugaran Anda sudah baik. Tingkatkan intensitas latihan untuk mencapai level Excellent.")
+                    elif "Average" in result:
+                        st.warning("📈 **Mulai tingkatkan!** Coba tambahkan latihan kardio 3x seminggu dan perbaiki pola makan.")
+                    else:
+                        st.error("🏃‍♂️ **Ayo mulai bergerak!** Konsultasikan dengan pelatih kebugaran untuk program latihan yang sesuai dengan kondisi Anda.")
+                    
+                    # Tambahkan informasi tentang model
+                    with st.expander("📚 Tentang Model Machine Learning"):
+                        st.markdown("""
+                        **Random Forest**
+                        - Ensemble learning menggunakan banyak pohon keputusan
+                        - Akurasi pada data test: ~75%
+                        - Keunggulan: Tidak mudah overfitting, bisa handle data non-linear
+                        
+                        **XGBoost (Extreme Gradient Boosting)**
+                        - Algoritma boosting yang sangat populer
+                        - Akurasi pada data test: ~75%
+                        - Keunggulan: Cepat, akurat, dan memiliki regularisasi
+                        
+                        **SVM (Support Vector Machine)**
+                        - Mencari hyperplane terbaik untuk memisahkan kelas
+                        - Akurasi pada data test: ~70%
+                        - Keunggulan: Efektif untuk data berdimensi tinggi
+                        """)
+                        
+                except Exception as e:
+                    st.error(f"Error saat prediksi: {str(e)}")
+    
+    else:
+        st.error("Gagal memuat model. Pastikan file dataset 'bodyPerformance.csv' tersedia di folder 'data/'.")
+
 elif menu == "📈 Progress":
     st.markdown('<div class="main-header">📈 Progress Tracking</div>', unsafe_allow_html=True)
     
@@ -623,7 +769,7 @@ elif menu == "📊 ML Predictor":
     
     # Train/load model
     try:
-        model, label_encoders = load_model()
+        model, label_encoders = model, label_encoders, scaler = load_model()()
         st.success("✅ Model loaded successfully!")
     except:
         st.info("Training model for the first time...")
