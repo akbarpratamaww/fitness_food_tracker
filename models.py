@@ -1,4 +1,4 @@
-# models.py - Final with feature order fix (tanpa merusak yang lain)
+# models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -9,99 +9,108 @@ import xgboost as xgb
 from sklearn.svm import SVC
 import joblib
 import os
+import warnings
+warnings.filterwarnings('ignore')
 
 # ==================== MODEL 1: PREDIKSI KALORI (REGRESI) ====================
+# Menggunakan dataset Predict Calorie Expenditure (Kaggle)
+# Kolom: Sex, Age, Height, Weight, Duration, Heart_Rate, Body_Temp, Calories
 CAL_MODEL_PATH = 'models/calorie_predictor.pkl'
-CAL_ENCODER_PATH = 'models/label_encoder.pkl'
-CAL_SCALER_PATH = 'models/scaler.pkl'
+CAL_SCALER_PATH = 'models/calorie_scaler.pkl'
+CAL_FEATURE_ORDER_PATH = 'models/calorie_feature_order.pkl'
 
 def train_calorie_prediction_model():
-    try:
-        df = pd.read_csv('data/exercise_dataset.csv')
-    except FileNotFoundError:
-        np.random.seed(42)
-        n_samples = 2000
-        df = pd.DataFrame({
-            'Gender': np.random.choice(['Male', 'Female'], n_samples),
-            'Age': np.random.randint(18, 70, n_samples),
-            'Height_cm': np.random.normal(170, 10, n_samples).clip(140, 220),
-            'Weight_kg': np.random.normal(75, 15, n_samples).clip(40, 150),
-            'Duration_min': np.random.randint(10, 120, n_samples),
-            'Heart_Rate_bpm': np.random.randint(80, 180, n_samples),
-            'Body_Temp_C': np.random.normal(37.5, 0.5, n_samples).clip(36.0, 39.5),
-        })
-        df['Calories_Burned'] = (
-            0.5 * df['Duration_min'] + 
-            0.8 * df['Weight_kg'] + 
-            0.3 * df['Heart_Rate_bpm'] - 
-            0.2 * df['Age'] +
-            np.where(df['Gender'] == 'Male', 50, 0) +
-            np.random.normal(0, 20, n_samples)
-        ).clip(50, 1200).round()
-        os.makedirs('data', exist_ok=True)
-        df.to_csv('data/exercise_dataset.csv', index=False)
+    print("🔄 Training calorie prediction model (with compression)...")
+    file_path = 'data/exercise_dataset.csv'
+    if not os.path.exists(file_path):
+        raise FileNotFoundError("Dataset exercise_dataset.csv tidak ditemukan.")
     
-    df = df.replace([np.inf, -np.inf], np.nan).dropna()
-    X = df.drop('Calories_Burned', axis=1)
-    y = df['Calories_Burned']
+    df = pd.read_csv(file_path)
+    print(f"Dataset asli: {len(df)} baris")
     
-    label_encoders = {}
-    for col in X.select_dtypes(include=['object']).columns:
-        le = LabelEncoder()
-        X[col] = le.fit_transform(X[col])
-        label_encoders[col] = le
+    # Sampling: gunakan 8.000 baris (cukup untuk akurasi baik)
+    n_samples = 60000
+    if len(df) > n_samples:
+        df = df.sample(n=n_samples, random_state=42)
+        print(f"✅ Menggunakan {n_samples} baris untuk training")
     
-    numeric_cols = X.select_dtypes(include=[np.number]).columns
+    # Pastikan kolom yang diperlukan ada
+    required_cols = ['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp', 'Calories']
+    for col in required_cols:
+        if col not in df.columns:
+            raise KeyError(f"Kolom '{col}' tidak ditemukan.")
+    
+    X = df[['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']].copy()
+    y = df['Calories']
+    
+    # Mapping Sex ke numerik
+    sex_map = {'male': 1, 'Male': 1, 'M': 1, 'female': 0, 'Female': 0, 'F': 0}
+    X['Sex'] = X['Sex'].map(sex_map).fillna(0).astype(int)
+    
+    # Standardisasi
     scaler = StandardScaler()
+    numeric_cols = ['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']
     X[numeric_cols] = scaler.fit_transform(X[numeric_cols])
     
+    feature_order = X.columns.tolist()
+    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = RandomForestRegressor(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1)
+    
+    model = RandomForestRegressor(n_estimators=200, max_depth=15, random_state=42, n_jobs=-1)
     model.fit(X_train, y_train)
     
     y_pred = model.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    print(f"✅ Calorie model trained! MAE: {mae:.2f}, R²: {r2:.3f}")
+    print(f"✅ Model terlatih! MAE: {mae:.2f}, R²: {r2:.3f}")
     
     os.makedirs('models', exist_ok=True)
-    joblib.dump(model, CAL_MODEL_PATH)
-    joblib.dump(label_encoders, CAL_ENCODER_PATH)
-    joblib.dump(scaler, CAL_SCALER_PATH)
-    return model, label_encoders, mae, r2
+    # Simpan dengan kompresi
+    joblib.dump(model, CAL_MODEL_PATH, compress=3)
+    joblib.dump(scaler, CAL_SCALER_PATH, compress=3)
+    joblib.dump(feature_order, CAL_FEATURE_ORDER_PATH, compress=3)
+    
+    return model, None, mae, r2
 
 def load_calorie_model():
     try:
         model = joblib.load(CAL_MODEL_PATH)
-        label_encoders = joblib.load(CAL_ENCODER_PATH)
         scaler = joblib.load(CAL_SCALER_PATH)
-        return model, label_encoders, scaler
-    except:
-        return train_calorie_prediction_model()
+        feature_order = joblib.load(CAL_FEATURE_ORDER_PATH)
+        return model, scaler, feature_order
+    except Exception as e:
+        print(f"⚠️ Model tidak ditemukan atau error: {e}. Melatih model baru...")
+        train_calorie_prediction_model()
+        model = joblib.load(CAL_MODEL_PATH)
+        scaler = joblib.load(CAL_SCALER_PATH)
+        feature_order = joblib.load(CAL_FEATURE_ORDER_PATH)
+        return model, scaler, feature_order
 
 def predict_calories_burned(gender, age, height_cm, weight_kg, duration_min, heart_rate_bpm, body_temp_c):
-    model, label_encoders, scaler = load_calorie_model()
-    input_data = pd.DataFrame({
-        'Gender': [gender],
-        'Age': [age],
-        'Height_cm': [height_cm],
-        'Weight_kg': [weight_kg],
-        'Duration_min': [duration_min],
-        'Heart_Rate_bpm': [heart_rate_bpm],
-        'Body_Temp_C': [body_temp_c]
-    })
-    if 'Gender' in label_encoders:
-        input_data['Gender'] = label_encoders['Gender'].transform([gender])[0]
-    numeric_cols = ['Age', 'Height_cm', 'Weight_kg', 'Duration_min', 'Heart_Rate_bpm', 'Body_Temp_C']
-    input_data[numeric_cols] = scaler.transform(input_data[numeric_cols])
-    prediction = model.predict(input_data)[0]
+    model, scaler, feature_order = load_calorie_model()
+    gender_val = 1 if gender == 'Male' else 0
+    input_dict = {
+        'Sex': gender_val,
+        'Age': age,
+        'Height': height_cm,
+        'Weight': weight_kg,
+        'Duration': duration_min,
+        'Heart_Rate': heart_rate_bpm,
+        'Body_Temp': body_temp_c
+    }
+    input_df = pd.DataFrame([input_dict])[feature_order]
+    numeric_cols = ['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']
+    input_df[numeric_cols] = scaler.transform(input_df[numeric_cols])
+    prediction = model.predict(input_df)[0]
     return round(prediction, 0)
 
 # ==================== MODEL 2: KLASIFIKASI TINGKAT KEBUGARAN ====================
+# Dataset: body_performance.csv
 BODY_MODEL_PATH = 'models/body_performance_classifier.pkl'
 BODY_SCALER_PATH = 'models/body_scaler.pkl'
 BODY_TARGET_PATH = 'models/body_target_encoder.pkl'
-BODY_FEATURE_ORDER_PATH = 'models/feature_order.pkl'   # untuk menyimpan urutan kolom
+BODY_GENDER_MAP_PATH = 'models/body_gender_map.pkl'
+BODY_FEATURE_ORDER_PATH = 'models/body_feature_order.pkl'
 
 def train_body_performance_model():
     possible_names = ['data/body_performance.csv', 'data/bodyPerformance.csv', 'data/bodyperformance.csv']
@@ -121,7 +130,7 @@ def train_body_performance_model():
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
     print("Kolom asli setelah cleaning:", list(df.columns))
     
-    # Mapping nama kolom sesuai dengan dataset Anda
+    # Mapping nama kolom yang mungkin berbeda
     rename_map = {
         'body_fat_%': 'body_fat_percent',
         'sit_and_bend_forward_cm': 'sit_bend',
@@ -138,7 +147,7 @@ def train_body_performance_model():
     if missing:
         raise KeyError(f"Kolom tidak ditemukan: {missing}. Kolom yang ada: {list(df.columns)}")
     
-    # Encode target (A,B,C,D)
+    # Encode target
     target_encoder = LabelEncoder()
     df['class'] = target_encoder.fit_transform(df['class'])
     
@@ -149,15 +158,16 @@ def train_body_performance_model():
     X = df[feature_cols].copy()
     y = df['class']
     
-    # Mapping gender berdasarkan nilai di dataset: 'F' dan 'M'
+    # Mapping gender: dataset menggunakan 'F' dan 'M'
     gender_map = {'F': 0, 'M': 1}
-    X['gender'] = X['gender'].str.upper().map(gender_map).fillna(0).astype(int)
+    # Bersihkan kolom gender (hapus spasi, uppercase)
+    X['gender'] = X['gender'].str.strip().str.upper().map(gender_map).fillna(0).astype(int)
     
-    # Simpan urutan fitur (feature order) - PENTING untuk prediksi
+    # Simpan urutan fitur
     feature_order = X.columns.tolist()
-    print("Feature order:", feature_order)
+    print("Feature order (model 2):", feature_order)
     
-    # Scaling semua fitur numerik
+    # Scaling
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
@@ -168,7 +178,7 @@ def train_body_performance_model():
     rf.fit(X_train, y_train)
     
     # XGBoost
-    xgb_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42, 
+    xgb_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42,
                                   use_label_encoder=False, eval_metric='mlogloss')
     xgb_model.fit(X_train, y_train)
     
@@ -184,40 +194,38 @@ def train_body_performance_model():
     
     models = {'random_forest': rf, 'xgboost': xgb_model, 'svm': svm}
     os.makedirs('models', exist_ok=True)
-    joblib.dump(models, BODY_MODEL_PATH)
-    joblib.dump(scaler, BODY_SCALER_PATH)
-    joblib.dump(target_encoder, BODY_TARGET_PATH)
-    joblib.dump(gender_map, 'models/gender_map.pkl')
-    joblib.dump(feature_order, BODY_FEATURE_ORDER_PATH)   # simpan feature order
+    # Di dalam models.py, pada fungsi train_body_performance_model
+    # Saat menyimpan models, tambahkan parameter compress=3
+    joblib.dump(models, BODY_MODEL_PATH, compress=3)
+    joblib.dump(scaler, BODY_SCALER_PATH, compress=3)
+    joblib.dump(target_encoder, BODY_TARGET_PATH, compress=3)
+    joblib.dump(gender_map, BODY_GENDER_MAP_PATH, compress=3)
+    joblib.dump(feature_order, BODY_FEATURE_ORDER_PATH, compress=3)
     
     return models, scaler, target_encoder, gender_map, (acc_rf, acc_xgb, acc_svm)
 
 def load_body_performance_model():
-    """Load model dan komponen, tetap mengembalikan 4 nilai (tanpa feature_order)"""
     try:
         models = joblib.load(BODY_MODEL_PATH)
         scaler = joblib.load(BODY_SCALER_PATH)
         target_encoder = joblib.load(BODY_TARGET_PATH)
-        gender_map = joblib.load('models/gender_map.pkl')
-        # feature_order tidak dikembalikan, akan dimuat langsung di predict_fitness_level
-        return models, scaler, target_encoder, gender_map
+        gender_map = joblib.load(BODY_GENDER_MAP_PATH)
+        feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
+        return models, scaler, target_encoder, gender_map, feature_order
     except Exception as e:
         print(f"⚠️ Model kebugaran belum ada atau error: {e}, melatih dari awal...")
         models, scaler, target_encoder, gender_map, _ = train_body_performance_model()
-        return models, scaler, target_encoder, gender_map
+        feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
+        return models, scaler, target_encoder, gender_map, feature_order
 
 def predict_fitness_level(model_name, input_data):
-    """Prediksi tingkat kebugaran dengan memastikan urutan fitur sama seperti training"""
-    # Load semua komponen
-    models, scaler, target_encoder, gender_map = load_body_performance_model()
-    # Load feature order dari file terpisah
-    feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
+    models, scaler, target_encoder, gender_map, feature_order = load_body_performance_model()
     
     # Hitung BMI
     height_m = input_data['height_cm'] / 100
     bmi = input_data['weight_kg'] / (height_m ** 2)
     
-    # Konversi gender input user ('Female'/'Male') ke format dataset ('F'/'M')
+    # Konversi gender input user ('Female'/'Male') ke kode dataset ('F'/'M')
     user_gender = input_data['gender']
     if user_gender == 'Female':
         gender_code = 'F'
@@ -227,7 +235,7 @@ def predict_fitness_level(model_name, input_data):
         gender_code = 'F'
     gender_val = gender_map.get(gender_code, 0)
     
-    # Buat dictionary dengan semua fitur
+    # Buat dictionary dengan urutan sesuai feature_order
     data_dict = {
         'gender': gender_val,
         'age': input_data['age'],
@@ -242,8 +250,7 @@ def predict_fitness_level(model_name, input_data):
         'broad_jump': input_data['broad_jump'],
         'bmi': bmi
     }
-    
-    # Buat DataFrame dengan urutan kolom sesuai feature_order
+    # Reorder sesuai feature_order
     input_df = pd.DataFrame([data_dict])[feature_order]
     
     # Scaling
@@ -253,14 +260,14 @@ def predict_fitness_level(model_name, input_data):
     model = models[model_name]
     pred = model.predict(input_scaled)[0]
     
-    # Confidence score
+    # Confidence
     if hasattr(model, 'predict_proba'):
         probs = model.predict_proba(input_scaled)[0]
         confidence = probs[pred] * 100
     else:
         confidence = 100.0
     
-    # Inverse transform target ke label asli (A, B, C, D)
+    # Inverse transform target ke label asli
     class_label = target_encoder.inverse_transform([pred])[0]
     display_map = {'A': 'A (Excellent)', 'B': 'B (Good)', 'C': 'C (Average)', 'D': 'D (Poor)'}
     display = display_map.get(class_label, class_label)
