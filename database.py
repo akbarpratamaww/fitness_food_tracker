@@ -3,10 +3,14 @@ import pandas as pd
 from datetime import datetime, date
 import hashlib
 
+# Path database utama (untuk data transaksional)
 DB_PATH = "data/fitness_tracker.db"
 
+# Path database untuk dataset (bisa sama atau berbeda. Sesuaikan dengan file .db Anda)
+DATASET_DB_PATH = "data/fitnessfoodtracker.db"   # ganti dengan nama file database Anda
+
 def init_database():
-    """Initialize all database tables."""
+    """Initialize all application tables (users, food_log, activity_log, weight_progress, chat_history)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -86,6 +90,58 @@ def init_database():
     conn.commit()
     conn.close()
 
+def read_table_to_df(table_name, db_path=None):
+    """
+    Membaca seluruh isi tabel dari database SQLite ke pandas DataFrame.
+    Berguna untuk membaca dataset seperti exercise_dataset, body_performance, food_dataset.
+    
+    Parameters:
+    - table_name: nama tabel (contoh: 'exercise_dataset', 'body_performance', 'food_dataset')
+    - db_path: path database, jika None menggunakan DATASET_DB_PATH
+    """
+    if db_path is None:
+        db_path = DATASET_DB_PATH
+    conn = sqlite3.connect(db_path)
+    try:
+        df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+        return df
+    except Exception as e:
+        print(f"Error membaca tabel {table_name}: {e}")
+        return None
+    finally:
+        conn.close()
+def table_exists(table_name, db_path=None):
+    """
+    Mengecek apakah suatu tabel ada di database SQLite.
+    
+    Parameters:
+    - table_name: nama tabel yang ingin dicek
+    - db_path: path database, jika None menggunakan DATASET_DB_PATH
+    
+    Returns:
+    - True jika tabel ditemukan, False jika tidak
+    """
+    if db_path is None:
+        db_path = DATASET_DB_PATH
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    exists = cursor.fetchone() is not None
+    conn.close()
+    return exists
+
+def get_table_columns(table_name, db_path=None):
+    """Mendapatkan daftar kolom dari suatu tabel (utilitas)."""
+    if db_path is None:
+        db_path = DATASET_DB_PATH
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [row[1] for row in cursor.fetchall()]
+    conn.close()
+    return columns
+
+# ==================== FUNGSI-FUNGSI ASLI (TIDAK BERUBAH) ====================
 def get_user(user_id=None):
     """Get user data. If user_id is None, get the most recent user."""
     conn = sqlite3.connect(DB_PATH)
@@ -102,7 +158,6 @@ def save_user(user_data):
     cursor = conn.cursor()
     
     if 'user_id' in user_data and user_data['user_id']:
-        # Update existing user
         cursor.execute('''
             UPDATE users SET name=?, age=?, gender=?, height_cm=?, weight_kg=?, 
             activity_level=?, fitness_goal=?, bmr=?, tdee=?, daily_target_calories=?
@@ -115,7 +170,6 @@ def save_user(user_data):
         ))
         user_id = user_data['user_id']
     else:
-        # Insert new user
         cursor.execute('''
             INSERT INTO users (name, age, gender, height_cm, weight_kg, activity_level,
             fitness_goal, bmr, tdee, daily_target_calories)
@@ -224,14 +278,12 @@ def get_today_summary(user_id):
     today = date.today().isoformat()
     conn = sqlite3.connect(DB_PATH)
     
-    # Total calories consumed today
     food_df = pd.read_sql_query('''
         SELECT SUM(calories) as total_calories FROM food_log 
         WHERE user_id = ? AND log_date = ?
     ''', conn, params=(user_id, today))
     calories_in = food_df['total_calories'].iloc[0] if not food_df['total_calories'].isna().iloc[0] else 0
     
-    # Total calories burned today
     activity_df = pd.read_sql_query('''
         SELECT SUM(calories_burned) as total_burned FROM activity_log 
         WHERE user_id = ? AND log_date = ?

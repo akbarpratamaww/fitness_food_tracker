@@ -1,4 +1,5 @@
 # models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
+# Dataset dibaca dari SQLite, bukan CSV
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -12,33 +13,45 @@ import os
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import fungsi dari database.py
+from database import read_table_to_df, table_exists
+
 # ==================== MODEL 1: PREDIKSI KALORI (REGRESI) ====================
-# Menggunakan dataset Predict Calorie Expenditure (Kaggle)
-# Kolom: Sex, Age, Height, Weight, Duration, Heart_Rate, Body_Temp, Calories
 CAL_MODEL_PATH = 'models/calorie_predictor.pkl'
 CAL_SCALER_PATH = 'models/calorie_scaler.pkl'
 CAL_FEATURE_ORDER_PATH = 'models/calorie_feature_order.pkl'
 
 def train_calorie_prediction_model():
-    print("🔄 Training calorie prediction model (with compression)...")
-    file_path = 'data/exercise_dataset.csv'
-    if not os.path.exists(file_path):
-        raise FileNotFoundError("Dataset exercise_dataset.csv tidak ditemukan.")
+    print("🔄 Training calorie prediction model (reading from SQLite)...")
     
-    df = pd.read_csv(file_path)
-    print(f"Dataset asli: {len(df)} baris")
+    # Pastikan tabel exercise_dataset ada di database
+    if not table_exists('exercise_dataset'):
+        raise FileNotFoundError("❌ Tabel 'exercise_dataset' tidak ditemukan dalam database. Pastikan file database sudah benar.")
     
-    # Sampling: gunakan 8.000 baris (cukup untuk akurasi baik)
+    # Baca data dari SQLite
+    df = read_table_to_df('exercise_dataset')
+    if df is None or df.empty:
+        raise ValueError("❌ Data dari tabel 'exercise_dataset' kosong.")
+    
+    print(f"✅ Dataset asli: {len(df)} baris")
+    
+    # Sampling: gunakan 60.000 baris (sesuai kode Anda)
     n_samples = 60000
     if len(df) > n_samples:
         df = df.sample(n=n_samples, random_state=42)
-        print(f"✅ Menggunakan {n_samples} baris untuk training")
+        print(f"✅ Menggunakan {n_samples} baris untuk training (sampling acak)")
     
-    # Pastikan kolom yang diperlukan ada
+    # Kolom yang diperlukan (pastikan nama kolom sesuai dengan di database)
     required_cols = ['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp', 'Calories']
+    # Cek ketersediaan kolom (case insensitive)
     for col in required_cols:
         if col not in df.columns:
-            raise KeyError(f"Kolom '{col}' tidak ditemukan.")
+            # Coba cari versi lowercase
+            alt = col.lower()
+            if alt in df.columns:
+                df.rename(columns={alt: col}, inplace=True)
+            else:
+                raise KeyError(f"❌ Kolom '{col}' tidak ditemukan. Kolom yang ada: {df.columns.tolist()}")
     
     X = df[['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']].copy()
     y = df['Calories']
@@ -47,25 +60,29 @@ def train_calorie_prediction_model():
     sex_map = {'male': 1, 'Male': 1, 'M': 1, 'female': 0, 'Female': 0, 'F': 0}
     X['Sex'] = X['Sex'].map(sex_map).fillna(0).astype(int)
     
-    # Standardisasi
+    # Standardisasi fitur numerik
     scaler = StandardScaler()
     numeric_cols = ['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']
     X[numeric_cols] = scaler.fit_transform(X[numeric_cols])
     
     feature_order = X.columns.tolist()
+    print(f"📌 Feature order: {feature_order}")
     
+    # Split data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
+    # Model Random Forest
     model = RandomForestRegressor(n_estimators=200, max_depth=15, random_state=42, n_jobs=-1)
     model.fit(X_train, y_train)
     
+    # Evaluasi
     y_pred = model.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     print(f"✅ Model terlatih! MAE: {mae:.2f}, R²: {r2:.3f}")
     
+    # Simpan model dan komponen dengan kompresi
     os.makedirs('models', exist_ok=True)
-    # Simpan dengan kompresi
     joblib.dump(model, CAL_MODEL_PATH, compress=3)
     joblib.dump(scaler, CAL_SCALER_PATH, compress=3)
     joblib.dump(feature_order, CAL_FEATURE_ORDER_PATH, compress=3)
@@ -104,8 +121,8 @@ def predict_calories_burned(gender, age, height_cm, weight_kg, duration_min, hea
     prediction = model.predict(input_df)[0]
     return round(prediction, 0)
 
+
 # ==================== MODEL 2: KLASIFIKASI TINGKAT KEBUGARAN ====================
-# Dataset: body_performance.csv
 BODY_MODEL_PATH = 'models/body_performance_classifier.pkl'
 BODY_SCALER_PATH = 'models/body_scaler.pkl'
 BODY_TARGET_PATH = 'models/body_target_encoder.pkl'
@@ -113,22 +130,22 @@ BODY_GENDER_MAP_PATH = 'models/body_gender_map.pkl'
 BODY_FEATURE_ORDER_PATH = 'models/body_feature_order.pkl'
 
 def train_body_performance_model():
-    possible_names = ['data/body_performance.csv', 'data/bodyPerformance.csv', 'data/bodyperformance.csv']
-    df = None
-    for name in possible_names:
-        try:
-            df = pd.read_csv(name)
-            print(f"✅ Dataset ditemukan: {name}")
-            break
-        except FileNotFoundError:
-            continue
+    print("🔄 Training fitness classification model (reading from SQLite)...")
     
-    if df is None:
-        raise FileNotFoundError("❌ Dataset tidak ditemukan. Pastikan file 'body_performance.csv' di folder 'data/'")
+    # Cek apakah tabel body_performance ada
+    if not table_exists('body_performance'):
+        raise FileNotFoundError("❌ Tabel 'body_performance' tidak ditemukan dalam database.")
     
-    # Bersihkan nama kolom
+    # Baca data dari SQLite
+    df = read_table_to_df('body_performance')
+    if df is None or df.empty:
+        raise ValueError("❌ Data dari tabel 'body_performance' kosong.")
+    
+    print(f"✅ Dataset dimuat: {len(df)} baris")
+    print(f"📋 Kolom asli di database: {df.columns.tolist()}")
+    
+    # Bersihkan nama kolom (lowercase, ganti spasi dengan underscore)
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
-    print("Kolom asli setelah cleaning:", list(df.columns))
     
     # Mapping nama kolom yang mungkin berbeda
     rename_map = {
@@ -145,32 +162,32 @@ def train_body_performance_model():
                      'diastolic', 'systolic', 'gripforce', 'sit_bend', 'situps', 'broad_jump', 'class']
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise KeyError(f"Kolom tidak ditemukan: {missing}. Kolom yang ada: {list(df.columns)}")
+        raise KeyError(f"❌ Kolom tidak ditemukan: {missing}. Kolom yang ada: {list(df.columns)}")
     
-    # Encode target
+    # Encode target class (A,B,C,D)
     target_encoder = LabelEncoder()
-    df['class'] = target_encoder.fit_transform(df['class'])
+    df['class'] = target_encoder.fit_transform(df['class'])  # A=0, B=1, C=2, D=3
     
     # Hitung BMI
     df['bmi'] = df['weight_kg'] / ((df['height_cm']/100) ** 2)
     
-    feature_cols = required_cols[:-1] + ['bmi']
+    feature_cols = required_cols[:-1] + ['bmi']  # semua kolom kecuali 'class'
     X = df[feature_cols].copy()
     y = df['class']
     
-    # Mapping gender: dataset menggunakan 'F' dan 'M'
+    # Mapping gender: database biasanya berisi 'F' dan 'M'
     gender_map = {'F': 0, 'M': 1}
-    # Bersihkan kolom gender (hapus spasi, uppercase)
     X['gender'] = X['gender'].str.strip().str.upper().map(gender_map).fillna(0).astype(int)
     
     # Simpan urutan fitur
     feature_order = X.columns.tolist()
-    print("Feature order (model 2):", feature_order)
+    print(f"📌 Feature order (model 2): {feature_order}")
     
-    # Scaling
+    # Standardisasi
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
+    # Split data
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
     
     # Random Forest
@@ -186,16 +203,15 @@ def train_body_performance_model():
     svm = SVC(kernel='rbf', C=1.0, probability=True, random_state=42)
     svm.fit(X_train, y_train)
     
+    # Evaluasi
     acc_rf = accuracy_score(y_test, rf.predict(X_test))
     acc_xgb = accuracy_score(y_test, xgb_model.predict(X_test))
     acc_svm = accuracy_score(y_test, svm.predict(X_test))
-    
-    print(f"✅ Fitness model trained! RF: {acc_rf:.2%}, XGB: {acc_xgb:.2%}, SVM: {acc_svm:.2%}")
+    print(f"✅ Fitness models trained! RF: {acc_rf:.2%}, XGB: {acc_xgb:.2%}, SVM: {acc_svm:.2%}")
     
     models = {'random_forest': rf, 'xgboost': xgb_model, 'svm': svm}
     os.makedirs('models', exist_ok=True)
-    # Di dalam models.py, pada fungsi train_body_performance_model
-    # Saat menyimpan models, tambahkan parameter compress=3
+    # Simpan dengan kompresi
     joblib.dump(models, BODY_MODEL_PATH, compress=3)
     joblib.dump(scaler, BODY_SCALER_PATH, compress=3)
     joblib.dump(target_encoder, BODY_TARGET_PATH, compress=3)
@@ -213,7 +229,7 @@ def load_body_performance_model():
         feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
         return models, scaler, target_encoder, gender_map, feature_order
     except Exception as e:
-        print(f"⚠️ Model kebugaran belum ada atau error: {e}, melatih dari awal...")
+        print(f"⚠️ Model kebugaran belum ada atau error: {e}. Melatih dari awal...")
         models, scaler, target_encoder, gender_map, _ = train_body_performance_model()
         feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
         return models, scaler, target_encoder, gender_map, feature_order
@@ -225,17 +241,12 @@ def predict_fitness_level(model_name, input_data):
     height_m = input_data['height_cm'] / 100
     bmi = input_data['weight_kg'] / (height_m ** 2)
     
-    # Konversi gender input user ('Female'/'Male') ke kode dataset ('F'/'M')
+    # Konversi gender input user ke kode dataset
     user_gender = input_data['gender']
-    if user_gender == 'Female':
-        gender_code = 'F'
-    elif user_gender == 'Male':
-        gender_code = 'M'
-    else:
-        gender_code = 'F'
+    gender_code = 'F' if user_gender == 'Female' else 'M'
     gender_val = gender_map.get(gender_code, 0)
     
-    # Buat dictionary dengan urutan sesuai feature_order
+    # Siapkan dictionary input
     data_dict = {
         'gender': gender_val,
         'age': input_data['age'],
@@ -250,7 +261,7 @@ def predict_fitness_level(model_name, input_data):
         'broad_jump': input_data['broad_jump'],
         'bmi': bmi
     }
-    # Reorder sesuai feature_order
+    # Urutkan sesuai feature_order
     input_df = pd.DataFrame([data_dict])[feature_order]
     
     # Scaling
