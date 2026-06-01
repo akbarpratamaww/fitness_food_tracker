@@ -104,7 +104,7 @@ st.sidebar.markdown(
 # Navigation menu
 menu = st.sidebar.radio(
     "📋 Menu",
-    ["🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", 
+    ["🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", "🏋️ Fitness Level Classifier",
      "📈 Progress", "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"]
 )
 
@@ -429,6 +429,148 @@ elif menu == "🏃 Activity Log":
         else:
             st.info("No activities logged yet. Start moving!")
 
+elif menu == "🏋️ Fitness Level Classifier":
+    st.markdown('<div class="main-header">🏋️ Klasifikasi Tingkat Kebugaran</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+        Masukkan data fisik dan hasil tes kebugaran Anda. Sistem akan memprediksi tingkat kebugaran 
+        menggunakan 3 algoritma Machine Learning: <strong>Random Forest, XGBoost, dan SVM</strong>.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Definisi fungsi dengan caching (indentasi rata kiri dalam blok ini)
+    @st.cache_resource
+    def load_fitness_models():
+        from models import load_body_performance_model
+        try:
+            models, scaler, target_encoder, gender_map, feature_order = load_body_performance_model()
+            return models, scaler, target_encoder, gender_map, feature_order
+        except Exception as e:
+            st.error(f"Gagal memuat model: {str(e)}")
+            return None, None, None, None, None
+
+    # Panggil fungsi
+    models, scaler, target_encoder, gender_map, feature_order = load_fitness_models()
+
+    if models is not None:
+        # ... sisanya (form input, prediksi)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            gender = st.selectbox("👤 Jenis Kelamin", ["Female", "Male"])
+            age = st.number_input("📅 Usia (tahun)", min_value=15, max_value=100, value=25)
+            height = st.number_input("📏 Tinggi Badan (cm)", min_value=100.0, max_value=250.0, value=170.0, step=0.5)
+            weight = st.number_input("⚖️ Berat Badan (kg)", min_value=30.0, max_value=200.0, value=70.0, step=0.5)
+            body_fat = st.slider("🧬 Persentase Lemak Tubuh (%)", min_value=5.0, max_value=50.0, value=20.0, step=0.5)
+        
+        with col2:
+            diastolic = st.number_input("❤️ Tekanan Darah Diastolik (mmHg)", min_value=40, max_value=120, value=80)
+            systolic = st.number_input("❤️ Tekanan Darah Sistolik (mmHg)", min_value=80, max_value=200, value=120)
+            gripForce = st.number_input("💪 Kekuatan Genggaman (kg)", min_value=10.0, max_value=100.0, value=40.0, step=0.5)
+            sit_bend = st.number_input("🧘 Kelenturan (sit and bend) cm", min_value=-20.0, max_value=50.0, value=15.0, step=0.5)
+            situps = st.number_input("🏃‍♂️ Sit-up per Menit", min_value=0, max_value=100, value=30)
+            broad_jump = st.number_input("🦵 Lompatan Lebar (cm)", min_value=50, max_value=300, value=150)
+        
+        st.markdown("---")
+        
+        # Pilihan algoritma
+        st.subheader("🤖 Pilih Algoritma")
+        algorithm = st.selectbox(
+            "Model Machine Learning",
+            ["random_forest", "xgboost", "svm"],
+            format_func=lambda x: {
+                "random_forest": "🌲 Random Forest (Akurasi ~75%)",
+                "xgboost": "⚡ XGBoost (Akurasi ~75%)",
+                "svm": "🎯 SVM - Support Vector Machine (Akurasi ~70%)"
+            }[x]
+        )
+        
+        if st.button("🔍 Prediksi Tingkat Kebugaran", use_container_width=True):
+            with st.spinner("Menganalisis data dengan model Machine Learning..."):
+                from models import predict_fitness_level
+                
+                input_data = {
+                    'gender': gender,
+                    'age': age,
+                    'height_cm': height,
+                    'weight_kg': weight,
+                    'body_fat': body_fat,
+                    'diastolic': diastolic,
+                    'systolic': systolic,
+                    'gripForce': gripForce,
+                    'sit_bend': sit_bend,
+                    'situps': situps,
+                    'broad_jump': broad_jump
+                }
+                
+                try:
+                    result, confidence, _ = predict_fitness_level(algorithm, input_data)
+                    
+                    # Tampilkan hasil prediksi dalam bentuk card
+                    st.markdown("---")
+                    st.subheader("📊 Hasil Klasifikasi")
+                    
+                    # Warna berdasarkan tingkat kebugaran
+                    if "Excellent" in result:
+                        bg_color = "#d4edda"
+                        border_color = "#28a745"
+                        icon = "🏆"
+                    elif "Good" in result:
+                        bg_color = "#d1ecf1"
+                        border_color = "#17a2b8"
+                        icon = "💪"
+                    elif "Average" in result:
+                        bg_color = "#fff3cd"
+                        border_color = "#ffc107"
+                        icon = "👍"
+                    else:
+                        bg_color = "#f8d7da"
+                        border_color = "#dc3545"
+                        icon = "⚠️"
+                    
+                    st.markdown(f"""
+                    <div style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
+                        <h3 style="margin: 0 0 0.5rem 0;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
+                        <p style="margin: 0;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Rekomendasi berdasarkan hasil
+                    st.subheader("📋 Rekomendasi")
+                    if "Excellent" in result:
+                        st.success("🎉 **Pertahankan!** Anda dalam kondisi bugar prima. Lanjutkan rutinitas olahraga dan pola makan sehat Anda.")
+                    elif "Good" in result:
+                        st.info("💪 **Bagus!** Tingkat kebugaran Anda sudah baik. Tingkatkan intensitas latihan untuk mencapai level Excellent.")
+                    elif "Average" in result:
+                        st.warning("📈 **Mulai tingkatkan!** Coba tambahkan latihan kardio 3x seminggu dan perbaiki pola makan.")
+                    else:
+                        st.error("🏃‍♂️ **Ayo mulai bergerak!** Konsultasikan dengan pelatih kebugaran untuk program latihan yang sesuai dengan kondisi Anda.")
+                    
+                    # Tambahkan informasi tentang model
+                    with st.expander("📚 Tentang Model Machine Learning"):
+                        st.markdown("""
+                        **Random Forest**
+                        - Ensemble learning menggunakan banyak pohon keputusan
+                        - Akurasi pada data test: ~75%
+                        - Keunggulan: Tidak mudah overfitting, bisa handle data non-linear
+                        
+                        **XGBoost (Extreme Gradient Boosting)**
+                        - Algoritma boosting yang sangat populer
+                        - Akurasi pada data test: ~75%
+                        - Keunggulan: Cepat, akurat, dan memiliki regularisasi
+                        
+                        **SVM (Support Vector Machine)**
+                        - Mencari hyperplane terbaik untuk memisahkan kelas
+                        - Akurasi pada data test: ~70%
+                        - Keunggulan: Efektif untuk data berdimensi tinggi
+                        """)
+                        
+                except Exception as e:
+                    st.error(f"Error saat prediksi: {str(e)}")
+    
+    else:
+        st.error("Gagal memuat model. Pastikan file dataset 'bodyPerformance.csv' tersedia di folder 'data/'.")
+
 elif menu == "📈 Progress":
     st.markdown('<div class="main-header">📈 Progress Tracking</div>', unsafe_allow_html=True)
     
@@ -537,6 +679,57 @@ elif menu == "🤖 AI Chatbot":
         }
         st.session_state.chatbot = FitnessChatbot(user_data)
     
+    # --- Greeting in Indonesian (only once) ---
+    if 'greeting_sent' not in st.session_state:
+        st.session_state.greeting_sent = False
+    
+    if not st.session_state.greeting_sent and len(st.session_state.messages) == 0:
+        from datetime import datetime
+        hour = datetime.now().hour
+        if hour < 12:
+            sapaan = "Selamat pagi 🌞"
+        elif hour < 18:
+            sapaan = "Selamat siang 🌤️"
+        else:
+            sapaan = "Selamat malam 🌙"
+        
+        nama = user['name'] if user['name'] else "Teman"
+        tujuan = user['fitness_goal']
+        if tujuan == "Weight Loss":
+            pesan_tujuan = "🎯 Ayo capai target penurunan berat badanmu! Aku akan membantu dengan defisit kalori yang sehat."
+        elif tujuan == "Muscle Gain":
+            pesan_tujuan = "💪 Siap membentuk otot? Aku akan memandumu dengan pola makan dan latihan yang tepat."
+        else:
+            pesan_tujuan = "🌟 Aku di sini untuk membantumu menjaga gaya hidup sehat dan seimbang."
+        
+        greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
+
+Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+
+{pesan_tujuan}
+
+**Apa yang bisa aku bantu?**
+• 🍎 Menganalisis makanan & menghitung kalori
+• 🏋️ Menyusun rencana olahraga
+• 📊 Memantau progres harian
+• 💡 Memberi motivasi dan tips kesehatan
+
+**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+- "How many calories should I eat today?"
+- "Give me a quick home workout"
+- "What's a healthy breakfast idea?"
+- "Aku butuh motivasi!"
+
+Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+        
+        st.session_state.messages.append({"role": "assistant", "content": greeting})
+        st.session_state.greeting_sent = True
+        try:
+            save_chat_message(user['user_id'], "[System Greeting]", greeting)
+        except:
+            pass
+        st.rerun()
+    
     # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -549,7 +742,7 @@ elif menu == "🤖 AI Chatbot":
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Get today's context (always defined)
+        # Get today's context
         calories_in, calories_out = get_today_summary(user['user_id'])
         context = {
             'calories_in': calories_in,
@@ -573,7 +766,7 @@ elif menu == "🤖 AI Chatbot":
         save_chat_message(user['user_id'], prompt, response)
         st.rerun()
     
-    # Quick questions sidebar - context must be defined inside each button click
+    # Quick questions sidebar (remain in English as before)
     with st.sidebar:
         st.markdown("### 💡 Quick Questions")
         st.markdown("Ask me anything:")
@@ -595,7 +788,7 @@ elif menu == "🤖 AI Chatbot":
                 with st.chat_message("user"):
                     st.markdown(q)
                 
-                # Define context inside the button action (important!)
+                # Define context inside the button action
                 calories_in, calories_out = get_today_summary(user['user_id'])
                 context = {
                     'calories_in': calories_in,
@@ -615,50 +808,54 @@ elif menu == "🤖 AI Chatbot":
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 save_chat_message(user['user_id'], q, response)
                 st.rerun()
-
+                
 elif menu == "📊 ML Predictor":
     st.markdown('<div class="main-header">📊 ML Calorie Burn Predictor</div>', unsafe_allow_html=True)
-    
-    st.info("This machine learning model predicts calories burned during exercise based on your workout parameters.")
-    
-    # Train/load model
-    try:
-        model, label_encoders = load_model()
+    st.info("This ML model predicts calories burned during exercise.")
+
+    # Caching model agar hanya di-load sekali
+    @st.cache_resource
+    def load_cached_calorie_model():
+        from models import load_calorie_model, train_calorie_prediction_model
+        try:
+            model, encoders, scaler = load_calorie_model()
+            return model, encoders, scaler, None
+        except:
+            # Jika belum ada, latih dan simpan
+            model, encoders, mae, r2 = train_calorie_prediction_model()
+            return model, encoders, None, (mae, r2)
+
+    model, encoders, scaler, training_info = load_cached_calorie_model()
+    if training_info:
+        st.success(f"✅ Model trained! MAE: {training_info[0]:.2f} cal, R²: {training_info[1]:.3f}")
+    else:
         st.success("✅ Model loaded successfully!")
-    except:
-        st.info("Training model for the first time...")
-        model, label_encoders, mae, r2 = train_calorie_prediction_model()
-        st.success(f"✅ Model trained! MAE: {mae:.2f} calories, R²: {r2:.3f}")
-    
+
     st.markdown("---")
     st.subheader("Enter Workout Details")
-    
+
     col1, col2 = st.columns(2)
-    
     with col1:
         gender = st.selectbox("Gender", ["Male", "Female"])
-        age = st.number_input("Age", min_value=15, max_value=100, value=30)
-        height_cm = st.number_input("Height (cm)", min_value=100, max_value=250, value=170)
-        weight_kg = st.number_input("Weight (kg)", min_value=30, max_value=200, value=70)
-    
+        age = st.number_input("Age", 15, 100, 30)
+        height = st.number_input("Height (cm)", 100, 250, 170)
+        weight = st.number_input("Weight (kg)", 30, 200, 70)
     with col2:
-        duration_min = st.number_input("Workout Duration (minutes)", min_value=5, max_value=180, value=45)
-        heart_rate_bpm = st.number_input("Average Heart Rate (bpm)", min_value=60, max_value=200, value=140)
-        body_temp_c = st.number_input("Body Temperature (°C)", min_value=35.0, max_value=40.0, value=37.0, step=0.1)
-    
+        duration = st.number_input("Duration (min)", 5, 180, 45)
+        hr = st.number_input("Heart Rate (bpm)", 60, 200, 140)
+        temp = st.number_input("Body Temp (°C)", 35.0, 40.0, 37.0, 0.1)
+
     if st.button("🔮 Predict Calories Burned", use_container_width=True):
-        prediction = predict_calories_burned(
-            gender, age, height_cm, weight_kg, duration_min, heart_rate_bpm, body_temp_c
-        )
-        
-        st.markdown("---")
-        st.markdown(f"""
-        <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px;">
-            <h2 style="color: white;">🔥 Predicted Calories Burned</h2>
-            <h1 style="color: white; font-size: 4rem;">{prediction:.0f} kcal</h1>
-            <p style="color: white;">for {duration_min} minutes of exercise</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with st.spinner("Predicting..."):
+            from models import predict_calories_burned
+            pred = predict_calories_burned(gender, age, height, weight, duration, hr, temp)
+            st.markdown(f"""
+            <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#4f46e5,#c084fc); border-radius:40px; color:white;">
+                <h2 style="color:white;">🔥 Predicted Calories Burned</h2>
+                <h1 style="font-size:4rem; margin:0;">{pred:.0f} kcal</h1>
+                <p>for {duration} minutes of exercise</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 elif menu == "ℹ️ About":
     st.markdown('<div class="main-header">ℹ️ About This App</div>', unsafe_allow_html=True)
@@ -666,8 +863,8 @@ elif menu == "ℹ️ About":
     st.markdown("""
     ### 💪 Smart Fitness & Calorie Tracker Chatbot
     
-    **Version:** 1.0.0
-    **Tech Stack:** Python, Streamlit, SQLite, Scikit-learn, Plotly, OpenAI GPT
+    **Version:** 2.0.0
+    **Tech Stack:** Python, Streamlit, SQLite, Scikit-learn, Plotly, Groq API
     
     ---
     
@@ -675,9 +872,13 @@ elif menu == "ℹ️ About":
     
     - **Personalized Calorie Tracking:** Calculates BMR, TDEE, and daily targets based on your profile
     - **Natural Language Food Logging:** Just describe what you ate
-    - **Activity Tracking:** Log workouts with automatic calorie burn calculation
-    - **AI-Powered Chatbot:** Get personalized fitness advice and recommendations
-    - **Machine Learning Predictor:** Predicts calorie burn during exercise
+    - **Activity Tracking:** Log workouts with automatic calorie burn calculation (MET formula)
+    - **AI-Powered Chatbot:** Get personalized fitness advice (Groq Llama 3.3 70B or rule-based fallback)
+    - **Machine Learning Predictor:** Predicts calorie burn during exercise (Random Forest Regressor)
+    - **Fitness Level Classifier:** Classify fitness level (A/B/C/D) using 3 ML algorithms:
+        - Random Forest (74.5% accuracy)
+        - XGBoost (76.4% accuracy)
+        - SVM (70.1% accuracy)
     - **Progress Dashboard:** Visual charts for weight and calorie trends
     
     ---
@@ -688,6 +889,7 @@ elif menu == "ℹ️ About":
     2. **Track Daily:** Log your meals and activities throughout the day
     3. **Monitor Progress:** Check your dashboard to see if you're on track
     4. **Get AI Advice:** Ask the chatbot any fitness-related questions
+    5. **Check Fitness Level:** Input your physical test results to get fitness classification
     
     ---
     
@@ -701,7 +903,19 @@ elif menu == "ℹ️ About":
     
     - **Calories Burned (MET):** (MET × 3.5 × weight) / 200 × minutes
     
-    - **Machine Learning:** Random Forest Regressor for calorie prediction
+    - **Machine Learning for Calorie Prediction:** Random Forest Regressor
+    
+    - **Machine Learning for Fitness Classification:** Random Forest, XGBoost, SVM with StandardScaler
+    
+    ---
+    
+    ### 📊 Dataset Information
+    
+    - **Food Dataset:** Auto-generated with common foods and calories
+    - **Exercise Dataset:** 2,000 synthetic samples for calorie prediction training
+    - **Fitness Classification Dataset:** Body Performance Data (13,393 samples) from Kaggle
+        - Features: age, gender, height, weight, body fat %, blood pressure, grip strength, flexibility, sit-ups, broad jump
+        - Target: 4 fitness classes (A, B, C, D)
     
     ---
     
@@ -712,26 +926,36 @@ elif menu == "ℹ️ About":
     - Update your weight weekly
     - Use the AI chatbot for personalized advice
     - Check your progress regularly to stay motivated
+    - For accurate fitness classification, input honest physical test results
     
     ---
     
     Made with ❤️ for Final Project
     """)
     
-    # Display dataset information
-    st.subheader("📊 Dataset Information")
-    try:
-        food_df = pd.read_csv('data/food_dataset.csv')
-        st.markdown(f"**Food Dataset:** {len(food_df)} food items with nutritional information")
-    except:
-        st.info("Food dataset will be created automatically when you start logging")
+    # Display dataset information (optional)
+    st.subheader("📁 Dataset Status")
+    col1, col2 = st.columns(2)
+    with col1:
+        try:
+            import pandas as pd
+            food_df = pd.read_csv('data/food_dataset.csv')
+            st.success(f"✅ Food dataset: {len(food_df)} items")
+        except:
+            st.info("📝 Food dataset will be created automatically")
+    with col2:
+        try:
+            exercise_df = pd.read_csv('data/exercise_dataset.csv')
+            st.success(f"✅ Exercise dataset: {len(exercise_df)} samples")
+        except:
+            st.info("📝 Exercise dataset will be created automatically")
     
+    # Cek dataset fitness
     try:
-        exercise_df = pd.read_csv('data/exercise_dataset.csv')
-        st.markdown(f"**Exercise Dataset:** {len(exercise_df)} workout records for ML training")
+        body_df = pd.read_csv('data/body_performance.csv')
+        st.success(f"✅ Body performance dataset: {len(body_df)} samples")
     except:
-        st.info("Exercise dataset will be created when ML model is trained")
-
+        st.warning("⚠️ Body performance dataset not found. Fitness classifier may not work.")
 # Run the app
 if __name__ == "__main__":
     pass
