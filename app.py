@@ -88,6 +88,12 @@ if 'chatbot' not in st.session_state:
     st.session_state.chatbot = None
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'profile_updated' not in st.session_state:
+    st.session_state.profile_updated = False
+if 'greeting_sent' not in st.session_state:
+    st.session_state.greeting_sent = False
 
 # Sidebar Navigation
 st.sidebar.markdown(
@@ -124,17 +130,29 @@ st.sidebar.info(
 if menu == "🏠 Dashboard":
     st.markdown('<div class="main-header">🏠 Dashboard</div>', unsafe_allow_html=True)
     
-    # Check if user exists
-    user = get_user()
+    # Use stored user object if available, otherwise fetch from DB
+    if st.session_state.user is not None:
+        user = st.session_state.user
+    elif st.session_state.user_id is not None:
+        user = get_user(st.session_state.user_id)
+        if user is not None:
+            st.session_state.user = user
+    else:
+        user = get_user()
+        if user is not None:
+            st.session_state.user = user
+            st.session_state.user_id = user['user_id']
+    
     if user is None:
         st.warning("⚠️ Please complete your profile first!")
         if st.button("Go to Profile"):
             st.session_state.menu = "👤 Profile"
             st.rerun()
     else:
+        # Ensure session_state is synced
         st.session_state.user_id = user['user_id']
+        st.session_state.user = user
         
-        # Display user greeting
         st.markdown(f"### Welcome back, {user['name']}! 👋")
         
         # Today's summary
@@ -157,29 +175,13 @@ if menu == "🏠 Dashboard":
             st.metric("💪 BMI", f"{calculate_bmi(user['weight_kg'], user['height_cm']):.1f}",
                      delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])))
         
-        # Quick actions
-        # st.markdown("---")
-        # st.subheader("📝 Quick Actions")
-        # col1, col2, col3 = st.columns(3)
-        # with col1:
-        #     if st.button("🍎 Quick Food Log", use_container_width=True):
-        #         st.switch_page("app.py")  # Navigate to food log
-        # with col2:
-        #     if st.button("🏃 Quick Activity Log", use_container_width=True):
-        #         st.switch_page("app.py")
-        # with col3:
-        #     if st.button("🤖 Ask AI Coach", use_container_width=True):
-        #         st.switch_page("app.py")
-        
         # Weekly calorie chart
         st.markdown("---")
         st.subheader("📊 Weekly Calorie Summary")
         
-        # Get last 7 days data
         food_logs = get_food_logs(user['user_id'], 7)
         activity_logs = get_activity_logs(user['user_id'], 7)
         
-        # Prepare data for chart
         dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
         daily_in = []
         daily_out = []
@@ -223,7 +225,14 @@ if menu == "🏠 Dashboard":
 elif menu == "👤 Profile":
     st.markdown('<div class="main-header">👤 Profile Setup</div>', unsafe_allow_html=True)
     
-    user = get_user()
+    # Use session state user if available, otherwise fetch from DB
+    if st.session_state.user is not None:
+        user = st.session_state.user
+    else:
+        user = get_user()
+        if user is not None:
+            st.session_state.user = user
+            st.session_state.user_id = user['user_id']
     
     with st.form("user_profile_form"):
         col1, col2 = st.columns(2)
@@ -244,7 +253,7 @@ elif menu == "👤 Profile":
         st.markdown("---")
         st.subheader("📊 Your Health Metrics")
         
-        # Calculate metrics
+        # Calculate metrics based on current form inputs
         bmr = calculate_bmr(weight_kg, height_cm, age, gender)
         tdee = calculate_tdee(bmr, activity_level)
         daily_target = calculate_daily_target(tdee, fitness_goal)
@@ -252,9 +261,9 @@ elif menu == "👤 Profile":
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("BMR", f"{bmr:.0f} kcal/day", help="Basal Metabolic Rate - calories at rest")
+            st.metric("BMR", f"{bmr:.0f} kcal/day")
         with col2:
-            st.metric("TDEE", f"{tdee:.0f} kcal/day", help="Total Daily Energy Expenditure")
+            st.metric("TDEE", f"{tdee:.0f} kcal/day")
         with col3:
             st.metric("Daily Target", f"{daily_target:.0f} kcal/day")
         with col4:
@@ -280,10 +289,15 @@ elif menu == "👤 Profile":
                 user_data['user_id'] = user['user_id']
             
             user_id = save_user(user_data)
+            user_data['user_id'] = user_id
+            
+            # Update session state
+            st.session_state.user = user_data
             st.session_state.user_id = user_id
             st.session_state.chatbot = FitnessChatbot(user_data)
+            st.session_state.profile_updated = True   # Tandai profil sudah diupdate
             
-            # Record initial weight
+            # Record weight
             update_weight(user_id, weight_kg)
             
             st.success("✅ Profile saved successfully!")
@@ -294,19 +308,17 @@ elif menu == "👤 Profile":
 elif menu == "🍎 Food Log":
     st.markdown('<div class="main-header">🍎 Food Log</div>', unsafe_allow_html=True)
     
-    user = get_user()
-    if user is None:
+    # Gunakan session state user
+    if st.session_state.user is None:
         st.warning("⚠️ Please complete your profile first!")
         st.stop()
-    
-    st.session_state.user_id = user['user_id']
+    user = st.session_state.user
     
     tab1, tab2, tab3 = st.tabs(["📝 Log Food", "🍽️ Meal Suggestions", "📋 Food History"])
     
     with tab1:
         st.subheader("Add Food Entry")
         
-        # Gunakan form agar submit bisa langsung memproses
         with st.form(key="food_form"):
             food_input = st.text_area(
                 "Describe what you ate",
@@ -320,11 +332,9 @@ elif menu == "🍎 Food Log":
                 if not food_input.strip():
                     st.error("Please enter a food description.")
                 else:
-                    # Parsing input
                     parsed = parse_food_input(food_input)
                     if parsed['detected']:
                         try:
-                            # Simpan ke database
                             add_food_log(
                                 user['user_id'],
                                 parsed['food_name'],
@@ -337,7 +347,6 @@ elif menu == "🍎 Food Log":
                             )
                             st.success(f"✅ {parsed['food_name']} ({parsed['calories']:.0f} kcal) logged successfully!")
                             st.balloons()
-                            # Tunggu sebentar lalu refresh halaman agar history terlihat
                             time.sleep(1)
                             st.rerun()
                         except Exception as e:
@@ -376,12 +385,10 @@ elif menu == "🍎 Food Log":
 elif menu == "🏃 Activity Log":
     st.markdown('<div class="main-header">🏃 Activity Log</div>', unsafe_allow_html=True)
     
-    user = get_user()
-    if user is None:
+    if st.session_state.user is None:
         st.warning("⚠️ Please complete your profile first!")
         st.stop()
-    
-    st.session_state.user_id = user['user_id']
+    user = st.session_state.user
     
     tab1, tab2 = st.tabs(["📝 Log Activity", "📋 Activity History"])
     
@@ -438,7 +445,6 @@ elif menu == "🏋️ Fitness Level Classifier":
     </div>
     """, unsafe_allow_html=True)
 
-    # Definisi fungsi dengan caching (indentasi rata kiri dalam blok ini)
     @st.cache_resource
     def load_fitness_models():
         from models import load_body_performance_model
@@ -449,11 +455,9 @@ elif menu == "🏋️ Fitness Level Classifier":
             st.error(f"Gagal memuat model: {str(e)}")
             return None, None, None, None, None
 
-    # Panggil fungsi
     models, scaler, target_encoder, gender_map, feature_order = load_fitness_models()
 
     if models is not None:
-        # ... sisanya (form input, prediksi)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -473,7 +477,6 @@ elif menu == "🏋️ Fitness Level Classifier":
         
         st.markdown("---")
         
-        # Pilihan algoritma
         st.subheader("🤖 Pilih Algoritma")
         algorithm = st.selectbox(
             "Model Machine Learning",
@@ -506,11 +509,9 @@ elif menu == "🏋️ Fitness Level Classifier":
                 try:
                     result, confidence, _ = predict_fitness_level(algorithm, input_data)
                     
-                    # Tampilkan hasil prediksi dalam bentuk card
                     st.markdown("---")
                     st.subheader("📊 Hasil Klasifikasi")
                     
-                    # Warna berdasarkan tingkat kebugaran
                     if "Excellent" in result:
                         bg_color = "#d4edda"
                         border_color = "#28a745"
@@ -535,7 +536,6 @@ elif menu == "🏋️ Fitness Level Classifier":
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Rekomendasi berdasarkan hasil
                     st.subheader("📋 Rekomendasi")
                     if "Excellent" in result:
                         st.success("🎉 **Pertahankan!** Anda dalam kondisi bugar prima. Lanjutkan rutinitas olahraga dan pola makan sehat Anda.")
@@ -546,7 +546,6 @@ elif menu == "🏋️ Fitness Level Classifier":
                     else:
                         st.error("🏃‍♂️ **Ayo mulai bergerak!** Konsultasikan dengan pelatih kebugaran untuk program latihan yang sesuai dengan kondisi Anda.")
                     
-                    # Tambahkan informasi tentang model
                     with st.expander("📚 Tentang Model Machine Learning"):
                         st.markdown("""
                         **Random Forest**
@@ -574,12 +573,11 @@ elif menu == "🏋️ Fitness Level Classifier":
 elif menu == "📈 Progress":
     st.markdown('<div class="main-header">📈 Progress Tracking</div>', unsafe_allow_html=True)
     
-    user = get_user()
-    if user is None:
+    if st.session_state.user is None:
         st.warning("⚠️ Please complete your profile first!")
         st.stop()
+    user = st.session_state.user
     
-    # Weight progress
     st.subheader("⚖️ Weight Progress")
     
     weight_history = get_weight_progress(user['user_id'])
@@ -598,7 +596,6 @@ elif menu == "📈 Progress":
             fig.update_traces(line=dict(color='#4ECDC4', width=3))
             st.plotly_chart(fig, use_container_width=True)
             
-            # Calculate progress
             start_weight = weight_history.iloc[0]['weight_kg']
             latest_weight = weight_history.iloc[-1]['weight_kg']
             change = latest_weight - start_weight
@@ -617,14 +614,12 @@ elif menu == "📈 Progress":
             st.success("Weight recorded!")
             st.rerun()
     
-    # Calorie trend
     st.subheader("🔥 Calorie Trend Analysis")
     
     food_logs = get_food_logs(user['user_id'], 30)
     activity_logs = get_activity_logs(user['user_id'], 30)
     
     if len(food_logs) > 0 or len(activity_logs) > 0:
-        # Aggregate by date
         daily_summary = {}
         for _, row in food_logs.iterrows():
             date_str = row['log_date']
@@ -638,7 +633,6 @@ elif menu == "📈 Progress":
                 daily_summary[date_str] = {'in': 0, 'out': 0}
             daily_summary[date_str]['out'] += row['calories_burned']
         
-        # Create DataFrame for chart
         trend_data = pd.DataFrame([
             {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
             for d, v in sorted(daily_summary.items())
@@ -659,13 +653,14 @@ elif menu == "📈 Progress":
 elif menu == "🤖 AI Chatbot":
     st.markdown('<div class="main-header">🤖 AI Fitness Coach</div>', unsafe_allow_html=True)
     
-    user = get_user()
-    if user is None:
+    # Gunakan session state user
+    if st.session_state.user is None:
         st.warning("⚠️ Please complete your profile first!")
         st.stop()
+    user = st.session_state.user
     
-    # Initialize chatbot with user data
-    if st.session_state.chatbot is None:
+    # Inisialisasi chatbot jika belum ada atau jika profil baru diupdate
+    if st.session_state.chatbot is None or st.session_state.profile_updated:
         user_data = {
             'name': user['name'],
             'age': user['age'],
@@ -678,11 +673,52 @@ elif menu == "🤖 AI Chatbot":
             'fitness_goal': user['fitness_goal']
         }
         st.session_state.chatbot = FitnessChatbot(user_data)
+        
+        # Jika pesan sambutan sudah ada di history, ganti dengan nama baru
+        if len(st.session_state.messages) > 0 and st.session_state.messages[0]['role'] == 'assistant':
+            from datetime import datetime
+            hour = datetime.now().hour
+            if hour < 12:
+                sapaan = "Selamat pagi 🌞"
+            elif hour < 18:
+                sapaan = "Selamat siang 🌤️"
+            else:
+                sapaan = "Selamat malam 🌙"
+            
+            nama = user['name'] if user['name'] else "Teman"
+            tujuan = user['fitness_goal']
+            if tujuan == "Weight Loss":
+                pesan_tujuan = "🎯 Ayo capai target penurunan berat badanmu! Aku akan membantu dengan defisit kalori yang sehat."
+            elif tujuan == "Muscle Gain":
+                pesan_tujuan = "💪 Siap membentuk otot? Aku akan memandumu dengan pola makan dan latihan yang tepat."
+            else:
+                pesan_tujuan = "🌟 Aku di sini untuk membantumu menjaga gaya hidup sehat dan seimbang."
+            
+            new_greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
+
+Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+
+{pesan_tujuan}
+
+**Apa yang bisa aku bantu?**
+• 🍎 Menganalisis makanan & menghitung kalori
+• 🏋️ Menyusun rencana olahraga
+• 📊 Memantau progres harian
+• 💡 Memberi motivasi dan tips kesehatan
+
+**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+- "How many calories should I eat today?"
+- "Give me a quick home workout"
+- "What's a healthy breakfast idea?"
+- "Aku butuh motivasi!"
+
+Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+            st.session_state.messages[0]['content'] = new_greeting
+        
+        st.session_state.profile_updated = False
+        st.rerun()
     
-    # --- Greeting in Indonesian (only once) ---
-    if 'greeting_sent' not in st.session_state:
-        st.session_state.greeting_sent = False
-    
+    # Tampilkan sapaan pertama kali jika belum ada pesan
     if not st.session_state.greeting_sent and len(st.session_state.messages) == 0:
         from datetime import datetime
         hour = datetime.now().hour
@@ -737,22 +773,17 @@ Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pert
     
     # Chat input
     if prompt := st.chat_input("Ask me anything about fitness, nutrition, or workouts..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Get today's context
         calories_in, calories_out = get_today_summary(user['user_id'])
         context = {
             'calories_in': calories_in,
             'calories_out': calories_out
         }
-        
-        # Get history (all messages except the current one)
         history = st.session_state.messages[:-1]
         
-        # Get bot response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = st.session_state.chatbot.get_response(
@@ -766,7 +797,7 @@ Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pert
         save_chat_message(user['user_id'], prompt, response)
         st.rerun()
     
-    # Quick questions sidebar (remain in English as before)
+    # Quick questions sidebar
     with st.sidebar:
         st.markdown("### 💡 Quick Questions")
         st.markdown("Ask me anything:")
@@ -783,12 +814,10 @@ Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pert
         
         for q in quick_questions:
             if st.button(q, key=f"quick_{q[:20]}"):
-                # Add user message
                 st.session_state.messages.append({"role": "user", "content": q})
                 with st.chat_message("user"):
                     st.markdown(q)
                 
-                # Define context inside the button action
                 calories_in, calories_out = get_today_summary(user['user_id'])
                 context = {
                     'calories_in': calories_in,
@@ -808,12 +837,11 @@ Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pert
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 save_chat_message(user['user_id'], q, response)
                 st.rerun()
-                
+
 elif menu == "📊 ML Predictor":
     st.markdown('<div class="main-header">📊 ML Calorie Burn Predictor</div>', unsafe_allow_html=True)
     st.info("This ML model predicts calories burned during exercise.")
 
-    # Caching model agar hanya di-load sekali
     @st.cache_resource
     def load_cached_calorie_model():
         from models import load_calorie_model, train_calorie_prediction_model
@@ -821,7 +849,6 @@ elif menu == "📊 ML Predictor":
             model, encoders, scaler = load_calorie_model()
             return model, encoders, scaler, None
         except:
-            # Jika belum ada, latih dan simpan
             model, encoders, mae, r2 = train_calorie_prediction_model()
             return model, encoders, None, (mae, r2)
 
@@ -933,12 +960,10 @@ elif menu == "ℹ️ About":
     Made with ❤️ for Final Project
     """)
     
-    # Display dataset information (optional)
     st.subheader("📁 Dataset Status")
     col1, col2 = st.columns(2)
     with col1:
         try:
-            import pandas as pd
             food_df = pd.read_csv('data/food_dataset.csv')
             st.success(f"✅ Food dataset: {len(food_df)} items")
         except:
@@ -950,12 +975,11 @@ elif menu == "ℹ️ About":
         except:
             st.info("📝 Exercise dataset will be created automatically")
     
-    # Cek dataset fitness
     try:
         body_df = pd.read_csv('data/body_performance.csv')
         st.success(f"✅ Body performance dataset: {len(body_df)} samples")
     except:
         st.warning("⚠️ Body performance dataset not found. Fitness classifier may not work.")
-# Run the app
+
 if __name__ == "__main__":
     pass
