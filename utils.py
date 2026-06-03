@@ -247,3 +247,70 @@ def generate_workout_recommendation(fitness_goal):
     }
     
     return recommendations.get(fitness_goal, recommendations['Maintain Weight'])
+
+# -----------------------------------------------------------------------------
+# Weight Forecasting (Peramalan Berat Badan) — Machine Learning
+# -----------------------------------------------------------------------------
+def forecast_weight(user_id, days=30):
+    """Prediksi berat badan untuk *days* ke depan menggunakan Linear Regression.
+
+    Proses:
+    1. Mengambil riwayat berat badan pengguna dari database.
+    2. Melatih model sklearn LinearRegression pada tanggal (ordinal) vs berat.
+    3. Mengembalikan dict berisi:
+       - 'forecast': DataFrame dengan kolom date & predicted_weight_kg
+       - 'history': DataFrame riwayat asli (record_date, weight_kg)
+       - 'model_coef': koefisien (slope) model — kg per hari
+       - 'model_r2': R² score pada data historis
+       - 'enough_data': bool apakah data cukup untuk regresi
+    """
+    from database import get_weight_progress
+
+    weight_history = get_weight_progress(user_id)
+
+    # Minimal 2 data point untuk regresi
+    if weight_history is None or weight_history.empty or len(weight_history) < 2:
+        return {
+            'forecast': pd.DataFrame(columns=['date', 'predicted_weight_kg']),
+            'history': weight_history if weight_history is not None else pd.DataFrame(),
+            'model_coef': 0,
+            'model_r2': 0,
+            'enough_data': False,
+        }
+
+    # Pastikan urutan kronologis
+    weight_history = weight_history.sort_values('record_date').reset_index(drop=True)
+
+    # Konversi tanggal ke ordinal untuk regresi
+    dates_dt = pd.to_datetime(weight_history['record_date'])
+    weight_history['ordinal'] = dates_dt.map(lambda d: d.toordinal())
+
+    X = weight_history['ordinal'].values.reshape(-1, 1)
+    y = weight_history['weight_kg'].values
+
+    # Train Linear Regression
+    from sklearn.linear_model import LinearRegression
+    model = LinearRegression()
+    model.fit(X, y)
+
+    r2 = model.score(X, y)
+    coef = model.coef_[0]  # kg per hari
+
+    # Prediksi untuk *days* hari ke depan
+    last_date = dates_dt.iloc[-1]
+    future_dates = [last_date + timedelta(days=i + 1) for i in range(days)]
+    future_ord = np.array([d.toordinal() for d in future_dates]).reshape(-1, 1)
+    preds = model.predict(future_ord)
+
+    forecast_df = pd.DataFrame({
+        'date': future_dates,
+        'predicted_weight_kg': np.round(preds, 2),
+    })
+
+    return {
+        'forecast': forecast_df,
+        'history': weight_history[['record_date', 'weight_kg']],
+        'model_coef': round(coef, 4),
+        'model_r2': round(r2, 4),
+        'enough_data': True,
+    }

@@ -10,6 +10,7 @@ from database import *
 from utils import *
 from models import predict_calories_burned, train_calorie_prediction_model
 from chatbot import FitnessChatbot
+from mining import run_apriori, get_sample_transactions
 
 # Page configuration
 st.set_page_config(
@@ -314,7 +315,7 @@ elif menu == "🍎 Food Log":
         st.stop()
     user = st.session_state.user
     
-    tab1, tab2, tab3 = st.tabs(["📝 Log Food", "🍽️ Meal Suggestions", "📋 Food History"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📝 Log Food", "🍽️ Meal Suggestions", "📋 Food History", "🛒 Food Association Rules"])
     
     with tab1:
         st.subheader("Add Food Entry")
@@ -367,7 +368,7 @@ elif menu == "🍎 Food Log":
                     st.markdown(f"- {option}")
         else:
             st.warning("⚠️ You've reached your daily calorie target!")
-    
+            
     with tab3:
         st.subheader("📋 Food History")
         food_logs = get_food_logs(user['user_id'], 30)
@@ -381,6 +382,160 @@ elif menu == "🍎 Food Log":
             )
         else:
             st.info("No food logs yet. Start tracking your meals!")
+            
+    with tab4:
+        st.subheader("🛒 Food Combination Pattern Analysis (Association Rule Mining)")
+        st.markdown("""
+        This feature applies the **Apriori Algorithm** to analyze which foods are frequently consumed together.
+        It is useful for understanding your eating habits and generating food recommendations automatically.
+        """)
+        
+        # Controls
+        col_src, col_group = st.columns(2)
+        with col_src:
+            data_source = st.selectbox(
+                "📁 Data Source",
+                ["Sample Food History Dataset (Demo)", "My Personal Food Logs"],
+                help="Choose the demo dataset to try the feature instantly or use your own food logging history."
+            )
+        with col_group:
+            grouping = st.selectbox(
+                "🔄 Transaction Grouping",
+                ["By Day", "By Meal Type"],
+                help="Determine whether a transaction represents all foods consumed in a day or foods consumed during a specific meal."
+            )
+            
+        col_sup, col_conf = st.columns(2)
+        with col_sup:
+            min_support = st.slider(
+                "📈 Minimum Support",
+                min_value=0.01, max_value=0.50, value=0.05, step=0.01,
+                format="%.2f",
+                help="Support measures how often a food combination appears across all transactions. A value of 0.05 means it must appear in at least 5% of transactions."
+            )
+        with col_conf:
+            min_confidence = st.slider(
+                "🎯 Minimum Confidence",
+                min_value=0.10, max_value=1.00, value=0.30, step=0.05,
+                format="%.2f",
+                help="Confidence measures how often the rule is true. A value of 0.50 means that if someone eats A, there is a 50% chance they also eat B."
+            )
+            
+        if st.button("🚀 Analyze Patterns", use_container_width=True):
+            transactions = []
+            
+            if data_source == "My Personal Log History":
+                # Ambil semua data log makanan pengguna (tidak dibatasi 30 hari agar datanya lebih banyak)
+                personal_logs = get_food_logs(user['user_id'], 365)
+                if personal_logs.empty:
+                    st.warning("⚠️ Your food history is empty. Please log some foods first in the 'Log Food' tab or use the demo dataset.")
+                else:
+                    # Bersihkan nama makanan agar seragam
+                    personal_logs['food_name'] = personal_logs['food_name'].str.strip().str.title()
+                    
+                    if grouping == "By Day":
+                        # Group by log_date
+                        grouped = personal_logs.groupby('log_date')['food_name'].apply(list)
+                        transactions = grouped.tolist()
+                    else:
+                        # Group by log_date and meal_type
+                        grouped = personal_logs.groupby(['log_date', 'meal_type'])['food_name'].apply(list)
+                        transactions = grouped.tolist()
+            else:
+                transactions = get_sample_transactions()
+                
+            if len(transactions) < 3:
+                if data_source == "My Personal Log History":
+                    st.error(f"❌ Not enough transactions (only {len(transactions)} found). Please add at least 3 different days or meal records.")
+            else:
+                with st.spinner("Mining food combination patterns using the Apriori Algorithm..."):
+                    rules, freq_1, freq_2 = run_apriori(transactions, min_support, min_confidence)
+                    
+                    # Display Overview Metrics
+                    st.markdown("---")
+                    st.subheader("📊 Association Rule Mining Results")
+                    
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.metric("Total Transactions", len(transactions))
+                    with col_m2:
+                        # count unique foods in transactions
+                        unique_foods = len(set([item for tx in transactions for item in tx]))
+                        st.metric("Unique Foods", unique_foods)
+                    with col_m3:
+                        st.metric("Generated Rules", len(rules))
+                        
+                    # Show rules if any
+                    if len(rules) > 0:
+                        # Build DataFrame for display
+                        rules_display = []
+                        for r_idx, r in enumerate(rules, 1):
+                            rules_display.append({
+                                "No": r_idx,
+                                "If Eats (Antecedent)": f"{r['antecedent']}",
+                                "Then Likely Also Eats (Consequent)": f"{r['consequent']}",
+                                "Support": f"{r['support']:.1%}",
+                                "Confidence": f"{r['confidence']:.1%}",
+                                "Lift": f"{r['lift']:.2f}",
+                                "Interpretasi": f"If a user eats {r['antecedent']}, there is a{r['confidence']:.0%} chance they also eat {r['consequent']}"
+                            })
+                        
+                        df_rules = pd.DataFrame(rules_display)
+                        st.markdown("#### 🛒 Aturan Asosiasi Makanan yang Ditemukan")
+                        st.dataframe(df_rules, use_container_width=True, hide_index=True)
+                        
+                        # Interpretasi Lift
+                        st.info("""
+                        💡 **How to Interpret Lift Values:**
+                        - **Lift > 1**: Strong positive relationship. Foods A and B are frequently consumed together.
+                        - **Lift = 1**: Independent relationship. Eating A does not affect the likelihood of eating B.
+                        - **Lift < 1**: Negative relationship. Foods A and B tend not to be consumed together.
+                        """)
+                    else:
+                        st.warning("⚠️ No association rules meet the selected Minimum Support or Minimum Confidence thresholds. Try lowering the slider values.")
+                        
+                    # Visualisasi Item Terbanyak (Frequent Items)
+                    if freq_1:
+                        st.markdown("---")
+                        st.markdown("#### 🌟 Most Popular Foods (Frequent 1-Itemsets)")
+                        # Convert to dataframe for charting
+                        freq_items_df = pd.DataFrame([
+                            {"Makanan": item, "Popularitas (Support)": sup} for item, sup in freq_1.items()
+                        ]).sort_values(by="Popularitas (Support)", ascending=False)
+                        
+                        fig = px.bar(
+                            freq_items_df.head(10), 
+                            x="Popularitas (Support)", 
+                            y="Makanan", 
+                            orientation='h',
+                            title="Top 10 Most Frequently Consumed Foods",
+                            color="Popularitas (Support)",
+                            color_continuous_scale="Viridis"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+        # Educational Section
+        with st.expander("📚 PLearn About Apriori Algorithm & Data Mining"):
+            st.markdown("""
+            ### What is Association Rule Mining & the Apriori Algorithm?
+
+            **Association Rule Mining** is a data mining technique used to discover interesting relationships or patterns among items in large transactional datasets. One of its most common applications is *Market Basket Analysis* in supermarkets and retail stores.
+
+            **The Apriori Algorithm** is a classic algorithm that operates based on the following principle:
+
+            > If an item combination (*itemset*) occurs infrequently, then all of its supersets will also occur infrequently.
+
+            #### 3 Main Metrics Used:
+
+            1. **Support**: Measures how frequently an item combination appears in the database.
+            $$\\text{Support}(A \\rightarrow B) = \\frac{\\text{Number of transactions containing A and B}}{\\text{Total number of transactions}}$$
+
+            2. **Confidence**: Measures the reliability or certainty of a rule. It indicates how often B appears in transactions that already contain A.
+            $$\\text{Confidence}(A \\rightarrow B) = \\frac{\\text{Number of transactions containing A and B}}{\\text{Number of transactions containing A}}$$
+
+            3. **Lift**: Measures the strength of a rule compared to the expected occurrence if A and B were independent.
+            $$\\text{Lift}(A \\rightarrow B) = \\frac{\\text{Confidence}(A \\rightarrow B)}{\\text{Support}(B)}$$
+            """)
 
 elif menu == "🏃 Activity Log":
     st.markdown('<div class="main-header">🏃 Activity Log</div>', unsafe_allow_html=True)
@@ -650,6 +805,132 @@ elif menu == "📈 Progress":
     else:
         st.info("Log your meals and activities to see progress charts!")
 
+    # -------------------------------------------------------------------------
+    # 🔮 Weight Forecasting (Machine Learning — Linear Regression)
+    # -------------------------------------------------------------------------
+    st.subheader("🔮 Weight Forecasting (ML — Linear Regression)")
+
+    forecast_col1, forecast_col2 = st.columns([1, 3])
+
+    with forecast_col1:
+        forecast_days = st.selectbox(
+            "Forecast Range",
+            options=[7, 14, 30],
+            format_func=lambda x: f"{x} days",
+            index=2,
+            key="forecast_horizon",
+        )
+
+    # Panggil fungsi forecast_weight
+    result = forecast_weight(user['user_id'], days=forecast_days)
+
+    if result['enough_data']:
+        forecast_df = result['forecast']
+        hist_df = result['history'].copy()
+        coef = result['model_coef']
+        r2 = result['model_r2']
+
+        # --- Kartu metrik ---
+        m1, m2, m3 = st.columns(3)
+
+        with m1:
+            direction = (
+                "📉 Decreasing"
+                if coef < 0
+                else ("📈 Increasing" if coef > 0 else "➡️ Stable")
+            )
+            st.metric(
+                "Daily Trend",
+                f"{abs(coef):.3f} kg/day",
+                delta=direction
+            )
+
+        with m2:
+            st.metric("R² Score", f"{r2:.4f}")
+
+        with m3:
+            pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
+            st.metric(
+                f"Day {forecast_days} Prediction",
+                f"{pred_end:.1f} kg"
+            )
+
+        # --- Grafik gabungan: historis + prediksi ---
+        fig_fc = go.Figure()
+
+        # Garis historis
+        hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
+        fig_fc.add_trace(go.Scatter(
+            x=hist_df['record_date'],
+            y=hist_df['weight_kg'],
+            mode='lines+markers',
+            name='Historical Data',
+            line=dict(color='#4ECDC4', width=3),
+            marker=dict(size=7),
+        ))
+
+        # Titik penghubung (data terakhir → prediksi pertama)
+        bridge_dates = [
+            hist_df['record_date'].iloc[-1],
+            forecast_df['date'].iloc[0]
+        ]
+        bridge_weights = [
+            hist_df['weight_kg'].iloc[-1],
+            forecast_df['predicted_weight_kg'].iloc[0]
+        ]
+
+        fig_fc.add_trace(go.Scatter(
+            x=bridge_dates,
+            y=bridge_weights,
+            mode='lines',
+            line=dict(color='#FF6B6B', width=2, dash='dot'),
+            showlegend=False,
+        ))
+
+        # Garis prediksi
+        fig_fc.add_trace(go.Scatter(
+            x=forecast_df['date'],
+            y=forecast_df['predicted_weight_kg'],
+            mode='lines+markers',
+            name=f'Forecast ({forecast_days} Days)',
+            line=dict(color='#FF6B6B', width=3, dash='dot'),
+            marker=dict(size=6, symbol='diamond'),
+        ))
+
+        fig_fc.update_layout(
+            title=f'Weight History & Forecast ({forecast_days} Days Ahead)',
+            xaxis_title='Date',
+            yaxis_title='Weight (kg)',
+            height=450,
+            hovermode='x unified',
+            legend=dict(
+                orientation='h',
+                yanchor='bottom',
+                y=1.02,
+                xanchor='right',
+                x=1
+            ),
+        )
+
+        st.plotly_chart(fig_fc, use_container_width=True)
+
+        # --- Tabel data prediksi ---
+        with st.expander("📋 View Forecast Data Table"):
+            display_df = forecast_df.copy()
+            display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
+            display_df.columns = ['Date', 'Predicted Weight (kg)']
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    else:
+        st.info(
+            "⚠️ Not enough weight records available (minimum 2 records required). "
+            "Please log your weight regularly to enable the forecasting feature."
+        )
+
 elif menu == "🤖 AI Chatbot":
     st.markdown('<div class="main-header">🤖 AI Fitness Coach</div>', unsafe_allow_html=True)
     
@@ -696,23 +977,23 @@ elif menu == "🤖 AI Chatbot":
             
             new_greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
 
-Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+                Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
 
-{pesan_tujuan}
+                {pesan_tujuan}
 
-**Apa yang bisa aku bantu?**
-• 🍎 Menganalisis makanan & menghitung kalori
-• 🏋️ Menyusun rencana olahraga
-• 📊 Memantau progres harian
-• 💡 Memberi motivasi dan tips kesehatan
+                **Apa yang bisa aku bantu?**
+                • 🍎 Menganalisis makanan & menghitung kalori
+                • 🏋️ Menyusun rencana olahraga
+                • 📊 Memantau progres harian
+                • 💡 Memberi motivasi dan tips kesehatan
 
-**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
-- "How many calories should I eat today?"
-- "Give me a quick home workout"
-- "What's a healthy breakfast idea?"
-- "Aku butuh motivasi!"
+                **Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+                - "How many calories should I eat today?"
+                - "Give me a quick home workout"
+                - "What's a healthy breakfast idea?"
+                - "Aku butuh motivasi!"
 
-Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+                Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
             st.session_state.messages[0]['content'] = new_greeting
         
         st.session_state.profile_updated = False
@@ -740,23 +1021,23 @@ Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pert
         
         greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
 
-Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+            Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
 
-{pesan_tujuan}
+            {pesan_tujuan}
 
-**Apa yang bisa aku bantu?**
-• 🍎 Menganalisis makanan & menghitung kalori
-• 🏋️ Menyusun rencana olahraga
-• 📊 Memantau progres harian
-• 💡 Memberi motivasi dan tips kesehatan
+            **Apa yang bisa aku bantu?**
+            • 🍎 Menganalisis makanan & menghitung kalori
+            • 🏋️ Menyusun rencana olahraga
+            • 📊 Memantau progres harian
+            • 💡 Memberi motivasi dan tips kesehatan
 
-**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
-- "How many calories should I eat today?"
-- "Give me a quick home workout"
-- "What's a healthy breakfast idea?"
-- "Aku butuh motivasi!"
+            **Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+            - "How many calories should I eat today?"
+            - "Give me a quick home workout"
+            - "What's a healthy breakfast idea?"
+            - "Aku butuh motivasi!"
 
-Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+            Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
         
         st.session_state.messages.append({"role": "assistant", "content": greeting})
         st.session_state.greeting_sent = True
