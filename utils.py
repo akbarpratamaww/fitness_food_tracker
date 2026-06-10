@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta
 
+# Import fungsi dari database.py
+from database import read_table_to_df, table_exists
+
 # Activity MET values (Metabolic Equivalent of Task)
 # Calories burned per minute = MET * 3.5 * weight_kg / 200
 ACTIVITY_MET = {
@@ -146,29 +149,45 @@ def parse_food_input(user_input):
 
 def load_food_dataset():
     """
-    Load food dataset from CSV file.
-    Creates a sample dataset if file doesn't exist.
+    Load food dataset from SQLite database (tabel 'food_dataset').
+    Jika tidak tersedia, fallback ke pembuatan dataset sampel (CSV).
     """
     try:
-        df = pd.read_csv('data/food_dataset.csv')
-        return df
-    except FileNotFoundError:
-        # Create sample food dataset
-        sample_foods = pd.DataFrame({
-            'Food': ['Apple', 'Banana', 'Orange', 'Chicken Breast', 'Salmon', 'Rice', 'Pasta', 
-                     'Bread', 'Egg', 'Milk', 'Yogurt', 'Cheese', 'Broccoli', 'Spinach', 'Carrot',
-                     'Pizza', 'Burger', 'French Fries', 'Ice Cream', 'Chocolate Cake'],
-            'Calories_per_100g': [52, 89, 47, 165, 208, 130, 131, 265, 155, 42, 59, 402, 34, 23, 41,
-                                   285, 354, 312, 207, 424],
-            'Protein_g': [0.3, 1.1, 0.9, 31, 20, 2.7, 5, 9, 13, 3.4, 10, 25, 2.8, 2.9, 0.9,
-                          12, 17, 3.4, 3.5, 5.3],
-            'Carbs_g': [14, 23, 12, 0, 0, 28, 25, 49, 1.1, 5, 3.6, 1.3, 7, 3.6, 10,
-                        30, 30, 41, 24, 58],
-            'Fat_g': [0.2, 0.3, 0.1, 3.6, 13, 0.3, 1.1, 3.2, 11, 1, 0.4, 33, 0.4, 0.4, 0.2,
-                      10, 20, 15, 11, 20]
-        })
+        # Cek apakah tabel food_dataset ada di database
+        if table_exists('food_dataset'):
+            df = read_table_to_df('food_dataset')
+            if df is not None and not df.empty:
+                print(f"✅ Memuat {len(df)} data makanan dari database SQLite.")
+                return df
+            else:
+                print("⚠️ Tabel 'food_dataset' kosong, menggunakan dataset sampel.")
+        else:
+            print("⚠️ Tabel 'food_dataset' tidak ditemukan dalam database, menggunakan dataset sampel.")
+    except Exception as e:
+        print(f"⚠️ Gagal membaca dari database: {e}. Menggunakan dataset sampel.")
+    
+    # Fallback: buat dataset sampel (sama seperti sebelumnya) dan simpan ke CSV (opsional)
+    sample_foods = pd.DataFrame({
+        'Food': ['Apple', 'Banana', 'Orange', 'Chicken Breast', 'Salmon', 'Rice', 'Pasta', 
+                 'Bread', 'Egg', 'Milk', 'Yogurt', 'Cheese', 'Broccoli', 'Spinach', 'Carrot',
+                 'Pizza', 'Burger', 'French Fries', 'Ice Cream', 'Chocolate Cake'],
+        'Calories_per_100g': [52, 89, 47, 165, 208, 130, 131, 265, 155, 42, 59, 402, 34, 23, 41,
+                               285, 354, 312, 207, 424],
+        'Protein_g': [0.3, 1.1, 0.9, 31, 20, 2.7, 5, 9, 13, 3.4, 10, 25, 2.8, 2.9, 0.9,
+                      12, 17, 3.4, 3.5, 5.3],
+        'Carbs_g': [14, 23, 12, 0, 0, 28, 25, 49, 1.1, 5, 3.6, 1.3, 7, 3.6, 10,
+                    30, 30, 41, 24, 58],
+        'Fat_g': [0.2, 0.3, 0.1, 3.6, 13, 0.3, 1.1, 3.2, 11, 1, 0.4, 33, 0.4, 0.4, 0.2,
+                  10, 20, 15, 11, 20]
+    })
+    # Opsional: simpan ke CSV untuk backup (tidak wajib)
+    try:
+        import os
+        os.makedirs('data', exist_ok=True)
         sample_foods.to_csv('data/food_dataset.csv', index=False)
-        return sample_foods
+    except:
+        pass
+    return sample_foods
 
 def generate_meal_recommendation(calories_remaining, diet_type=None):
     """Generate meal recommendations based on remaining calories."""
