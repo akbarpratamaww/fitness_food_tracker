@@ -1,4 +1,4 @@
-# models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
+﻿# models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
 # Dataset dibaca dari SQLite, bukan CSV
 import pandas as pd
 import numpy as np
@@ -22,24 +22,24 @@ CAL_SCALER_PATH = 'models/calorie_scaler.pkl'
 CAL_FEATURE_ORDER_PATH = 'models/calorie_feature_order.pkl'
 
 def train_calorie_prediction_model():
-    print("🔄 Training calorie prediction model (reading from SQLite)...")
+    print("ðŸ”„ Training calorie prediction model (reading from SQLite)...")
     
     # Pastikan tabel exercise_dataset ada di database
     if not table_exists('exercise_dataset'):
-        raise FileNotFoundError("❌ Tabel 'exercise_dataset' tidak ditemukan dalam database. Pastikan file database sudah benar.")
+        raise FileNotFoundError("âŒ Tabel 'exercise_dataset' tidak ditemukan dalam database. Pastikan file database sudah benar.")
     
     # Baca data dari SQLite
     df = read_table_to_df('exercise_dataset')
     if df is None or df.empty:
-        raise ValueError("❌ Data dari tabel 'exercise_dataset' kosong.")
+        raise ValueError("âŒ Data dari tabel 'exercise_dataset' kosong.")
     
-    print(f"✅ Dataset asli: {len(df)} baris")
+    print(f"âœ… Dataset asli: {len(df)} baris")
     
     # Sampling: gunakan 60.000 baris (sesuai kode Anda)
     n_samples = 60000
     if len(df) > n_samples:
         df = df.sample(n=n_samples, random_state=42)
-        print(f"✅ Menggunakan {n_samples} baris untuk training (sampling acak)")
+        print(f"âœ… Menggunakan {n_samples} baris untuk training (sampling acak)")
     
     # Kolom yang diperlukan (pastikan nama kolom sesuai dengan di database)
     required_cols = ['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp', 'Calories']
@@ -51,7 +51,7 @@ def train_calorie_prediction_model():
             if alt in df.columns:
                 df.rename(columns={alt: col}, inplace=True)
             else:
-                raise KeyError(f"❌ Kolom '{col}' tidak ditemukan. Kolom yang ada: {df.columns.tolist()}")
+                raise KeyError(f"âŒ Kolom '{col}' tidak ditemukan. Kolom yang ada: {df.columns.tolist()}")
     
     X = df[['Sex', 'Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']].copy()
     y = df['Calories']
@@ -66,7 +66,7 @@ def train_calorie_prediction_model():
     X[numeric_cols] = scaler.fit_transform(X[numeric_cols])
     
     feature_order = X.columns.tolist()
-    print(f"📌 Feature order: {feature_order}")
+    print(f"ðŸ“Œ Feature order: {feature_order}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -79,7 +79,7 @@ def train_calorie_prediction_model():
     y_pred = model.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    print(f"✅ Model terlatih! MAE: {mae:.2f}, R²: {r2:.3f}")
+    print(f"âœ… Model terlatih! MAE: {mae:.2f}, RÂ²: {r2:.3f}")
     
     # Simpan model dan komponen dengan kompresi
     os.makedirs('models', exist_ok=True)
@@ -90,13 +90,17 @@ def train_calorie_prediction_model():
     return model, None, mae, r2
 
 def load_calorie_model():
+    required_files = [CAL_MODEL_PATH, CAL_SCALER_PATH, CAL_FEATURE_ORDER_PATH]
+    if not all(os.path.exists(f) for f in required_files):
+        print("[INFO] Calorie model files missing. Training new model...")
+        train_calorie_prediction_model()
     try:
         model = joblib.load(CAL_MODEL_PATH)
         scaler = joblib.load(CAL_SCALER_PATH)
         feature_order = joblib.load(CAL_FEATURE_ORDER_PATH)
         return model, scaler, feature_order
     except Exception as e:
-        print(f"⚠️ Model tidak ditemukan atau error: {e}. Melatih model baru...")
+        print(f"[ERROR] Failed to load calorie model: {e}. Retraining...")
         train_calorie_prediction_model()
         model = joblib.load(CAL_MODEL_PATH)
         scaler = joblib.load(CAL_SCALER_PATH)
@@ -130,19 +134,19 @@ BODY_GENDER_MAP_PATH = 'models/body_gender_map.pkl'
 BODY_FEATURE_ORDER_PATH = 'models/body_feature_order.pkl'
 
 def train_body_performance_model():
-    print("🔄 Training fitness classification model (reading from SQLite)...")
+    print("ðŸ”„ Training fitness classification model (reading from SQLite)...")
     
     # Cek apakah tabel body_performance ada
     if not table_exists('body_performance'):
-        raise FileNotFoundError("❌ Tabel 'body_performance' tidak ditemukan dalam database.")
+        raise FileNotFoundError("âŒ Tabel 'body_performance' tidak ditemukan dalam database.")
     
     # Baca data dari SQLite
     df = read_table_to_df('body_performance')
     if df is None or df.empty:
-        raise ValueError("❌ Data dari tabel 'body_performance' kosong.")
+        raise ValueError("âŒ Data dari tabel 'body_performance' kosong.")
     
-    print(f"✅ Dataset dimuat: {len(df)} baris")
-    print(f"📋 Kolom asli di database: {df.columns.tolist()}")
+    print(f"âœ… Dataset dimuat: {len(df)} baris")
+    print(f"ðŸ“‹ Kolom asli di database: {df.columns.tolist()}")
     
     # Bersihkan nama kolom (lowercase, ganti spasi dengan underscore)
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
@@ -162,7 +166,7 @@ def train_body_performance_model():
                      'diastolic', 'systolic', 'gripforce', 'sit_bend', 'situps', 'broad_jump', 'class']
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise KeyError(f"❌ Kolom tidak ditemukan: {missing}. Kolom yang ada: {list(df.columns)}")
+        raise KeyError(f"âŒ Kolom tidak ditemukan: {missing}. Kolom yang ada: {list(df.columns)}")
     
     # Encode target class (A,B,C,D)
     target_encoder = LabelEncoder()
@@ -181,7 +185,7 @@ def train_body_performance_model():
     
     # Simpan urutan fitur
     feature_order = X.columns.tolist()
-    print(f"📌 Feature order (model 2): {feature_order}")
+    print(f"ðŸ“Œ Feature order (model 2): {feature_order}")
     
     # Standardisasi
     scaler = StandardScaler()
@@ -207,7 +211,7 @@ def train_body_performance_model():
     acc_rf = accuracy_score(y_test, rf.predict(X_test))
     acc_xgb = accuracy_score(y_test, xgb_model.predict(X_test))
     acc_svm = accuracy_score(y_test, svm.predict(X_test))
-    print(f"✅ Fitness models trained! RF: {acc_rf:.2%}, XGB: {acc_xgb:.2%}, SVM: {acc_svm:.2%}")
+    print(f"âœ… Fitness models trained! RF: {acc_rf:.2%}, XGB: {acc_xgb:.2%}, SVM: {acc_svm:.2%}")
     
     models = {'random_forest': rf, 'xgboost': xgb_model, 'svm': svm}
     os.makedirs('models', exist_ok=True)
@@ -221,6 +225,11 @@ def train_body_performance_model():
     return models, scaler, target_encoder, gender_map, (acc_rf, acc_xgb, acc_svm)
 
 def load_body_performance_model():
+    required_files = [BODY_MODEL_PATH, BODY_SCALER_PATH, BODY_TARGET_PATH,
+                      BODY_GENDER_MAP_PATH, BODY_FEATURE_ORDER_PATH]
+    if not all(os.path.exists(f) for f in required_files):
+        print("[INFO] Fitness model files missing. Training new model...")
+        train_body_performance_model()
     try:
         models = joblib.load(BODY_MODEL_PATH)
         scaler = joblib.load(BODY_SCALER_PATH)
@@ -229,7 +238,7 @@ def load_body_performance_model():
         feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
         return models, scaler, target_encoder, gender_map, feature_order
     except Exception as e:
-        print(f"⚠️ Model kebugaran belum ada atau error: {e}. Melatih dari awal...")
+        print(f"[ERROR] Fitness model load failed: {e}. Retraining...")
         models, scaler, target_encoder, gender_map, _ = train_body_performance_model()
         feature_order = joblib.load(BODY_FEATURE_ORDER_PATH)
         return models, scaler, target_encoder, gender_map, feature_order
