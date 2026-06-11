@@ -8,6 +8,7 @@ import time
 # Import modules
 from database import *
 from utils import *
+from streamlit_cookies_controller import CookieController
 from models import predict_calories_burned, train_calorie_prediction_model
 from chatbot import FitnessChatbot
 from mining import run_apriori, get_sample_transactions
@@ -494,15 +495,24 @@ st.markdown("""
 # Initialize database
 init_database()
 
+# Initialize Cookie Controller
+controller = CookieController()
+
 # Initialize session state
 if 'user_id' not in st.session_state:
-    local_uid = get_local_session()
-    if local_uid is not None:
-        st.session_state.user_id = int(local_uid)
-        if st.query_params:
-            st.query_params.clear()
-    else:
-        st.session_state.user_id = None
+    st.session_state.user_id = None
+    try:
+        token = controller.get('user_session')
+        if token:
+            parts = token.split(":")
+            if len(parts) == 2:
+                uid, sig = parts[0], parts[1]
+                if verify_user_id(uid, sig):
+                    st.session_state.user_id = int(uid)
+                    if st.query_params:
+                        st.query_params.clear()
+    except Exception:
+        pass
 if 'chatbot' not in st.session_state:
     st.session_state.chatbot = None
 if 'messages' not in st.session_state:
@@ -575,7 +585,8 @@ if st.session_state.user_id is None:
                     if user_row is not None:
                         st.session_state.user_id = int(user_row['user_id'])
                         st.session_state.user = user_row.to_dict()
-                        save_local_session(st.session_state.user_id)
+                        token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
+                        controller.set('user_session', token)
                         if st.query_params:
                             st.query_params.clear()
                         st.session_state.active_menu = "Dashboard"
@@ -755,7 +766,8 @@ if st.session_state.user_id is None:
                             user_row = get_user(new_uid)
                             st.session_state.user_id = new_uid
                             st.session_state.user = user_row.to_dict()
-                            save_local_session(new_uid)
+                            token = f"{new_uid}:{sign_user_id(new_uid)}"
+                            controller.set('user_session', token)
                             if st.query_params:
                                 st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
@@ -838,7 +850,7 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                clear_local_session()
+                controller.remove('user_session')
                 st.query_params.clear()
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
