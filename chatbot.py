@@ -2,6 +2,7 @@ import os
 import streamlit as st          # <--- BARU: import streamlit
 from dotenv import load_dotenv
 from groq import Groq
+from datetime import datetime
 
 load_dotenv()  # tetap digunakan untuk localhost
 
@@ -55,6 +56,45 @@ class FitnessChatbot:
             # Add current user message
             messages.append({"role": "user", "content": user_message})
 
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_food",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a food they ate. DO NOT call this for recommendations, recipes, or without asking first.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "food_name": {"type": "string", "description": "Name of the food"},
+                                "calories": {"type": "number", "description": "Estimated total calories (kcal)"},
+                                "protein": {"type": "number", "description": "Estimated total protein (g)"},
+                                "carbs": {"type": "number", "description": "Estimated total carbohydrates (g)"},
+                                "fat": {"type": "number", "description": "Estimated total fat (g)"},
+                                "meal_type": {"type": "string", "enum": ["Breakfast", "Lunch", "Dinner", "Snack"], "description": "Type of meal"}
+                            },
+                            "required": ["food_name", "calories", "protein", "carbs", "fat", "meal_type"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_activity",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a workout they did. DO NOT call this for recommendations, workout advice, or without asking first.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "activity_type": {"type": "string", "description": "Name of the exercise or activity"},
+                                "duration_minutes": {"type": "number", "description": "Duration in minutes"},
+                                "calories_burned": {"type": "number", "description": "Estimated calories burned"},
+                                "intensity": {"type": "string", "enum": ["Low", "Medium", "High"], "description": "Intensity of the activity"}
+                            },
+                            "required": ["activity_type", "duration_minutes", "calories_burned", "intensity"]
+                        }
+                    }
+                }
+            ]
+
             response = self.client.chat.completions.create(
                 model="llama-3.3-70b-versatile",  # or "gemma2-9b-it" "llama-3.1-8b-instant" "llama-3.3-70b-versatile"
                 messages=messages,
@@ -62,9 +102,91 @@ class FitnessChatbot:
                 max_tokens=400,
                 top_p=0.9,
                 frequency_penalty=0.3,
-                presence_penalty=0.3
+                presence_penalty=0.3,
+                tools=tools,
+                tool_choice="auto"
             )
-            return response.choices[0].message.content
+            
+            response_message = response.choices[0].message
+            
+            # Check for tool calls
+            if response_message.tool_calls:
+                import json
+                from datetime import date
+                from database import add_food_log, add_activity_log
+                
+                tool_call = response_message.tool_calls[0]
+                function_name = tool_call.function.name
+                
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except:
+                    function_args = {}
+                    
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                tool_result_text = "Data not logged."
+                
+                if user_id:
+                    if function_name == "log_food":
+                        add_food_log(
+                            user_id=user_id,
+                            food_name=function_args.get("food_name", "Unknown Food"),
+                            calories=function_args.get("calories", 0),
+                            protein=function_args.get("protein", 0),
+                            carbs=function_args.get("carbs", 0),
+                            fat=function_args.get("fat", 0),
+                            meal_type=function_args.get("meal_type", "Snack"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('food_name')} with {function_args.get('calories', 0):.0f} kcal."
+                    
+                    elif function_name == "log_activity":
+                        add_activity_log(
+                            user_id=user_id,
+                            activity_type=function_args.get("activity_type", "Exercise"),
+                            duration_minutes=function_args.get("duration_minutes", 0),
+                            calories_burned=function_args.get("calories_burned", 0),
+                            intensity=function_args.get("intensity", "Medium"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('activity_type')} burning {function_args.get('calories_burned', 0):.0f} kcal."
+
+                # Append the assistant's tool call message
+                messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                    ]
+                })
+                
+                # Append the tool result message
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": function_name,
+                    "content": tool_result_text
+                })
+                
+                # Make a second API call to get the final conversational response
+                second_response = self.client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=400,
+                    top_p=0.9
+                )
+                
+                return second_response.choices[0].message.content
+
+            return response_message.content
 
         except Exception as e:
             return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
@@ -110,7 +232,8 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 5. **Respond in the user's language** – If they write in Indonesian, reply in Indonesian. If English, reply in English.
 6. **Include small motivational tips** when relevant.
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
-8. **Strict Guardrails / Topic Limitation**: You must ONLY answer questions related to fitness, health, exercise, nutrition, diet, sleep, and physical recovery. If the user asks about anything unrelated (such as programming/coding, general math, history, news, jokes/stories, politics, geography, or general information), you MUST politely but firmly decline to answer and guide them back to fitness or nutrition topics. Never break character or answer off-topic queries.
+8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
@@ -120,7 +243,13 @@ Remember: The user is a real person trying to improve their health. Make every r
 
     def _get_default_system_prompt(self):
         return """You are FitBot, a friendly fitness and nutrition coach. 
-Strict Guardrails: Provide practical, science-based advice ONLY on exercise, diet, weight loss, muscle gain, sleep, recovery, and healthy habits. Do NOT answer any off-topic questions (e.g. coding, history, general knowledge, etc.). If the user asks about off-topic issues, politely decline and steer them back to health and fitness. Keep responses concise (under 200 words) and actionable. Use emojis to be engaging. Respond in the same language as the user (Indonesian or English)."""
+Provide practical, science-based advice on exercise, diet, weight loss, muscle gain, and healthy habits.
+Keep responses concise (under 200 words) and actionable. Use emojis to be engaging.
+Respond in the same language as the user (Indonesian or English).
+
+CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+
+DATABASE ACCESS: You have direct database access via the `log_food` and `log_activity` tools. Before calling any tool, you MUST always ask the user for text confirmation first. Only call the tool if they explicitly agree (e.g. reply 'Ya/Yes/Catat'). Do NOT call the tool on recommendations or without asking."""
 
     def _get_rule_based_response(self, user_message, context):
         """Enhanced fallback responses when API is not available."""

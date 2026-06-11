@@ -237,7 +237,13 @@ st.markdown("""
         background: transparent !important;
     }
     .main .block-container, [data-testid="stAppViewBlockContainer"] {
-        padding-top: 90px !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        border-radius: 28px !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+        padding: 2.5rem 3rem !important;
+        max-width: 1200px !important;
+        margin: 90px auto 30px auto !important;
     }
    /* div[data-testid="stToolbar"] {
         display: none !important;
@@ -1819,6 +1825,7 @@ elif menu == "AI Chatbot":
     # Inisialisasi chatbot jika belum ada atau jika profil baru diupdate
     if st.session_state.chatbot is None or st.session_state.profile_updated:
         user_data = {
+            'user_id': user['user_id'],
             'name': user['name'],
             'age': user['age'],
             'gender': user['gender'],
