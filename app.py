@@ -1014,6 +1014,13 @@ def logout_confirm_dialog():
             st.rerun()
     with col_no:
         if st.button("Batal", use_container_width=True, key="dialog_cancel_logout"):
+            # Force the radio back to the current active menu so the
+            # Logout item is deselected and won't re-trigger next rerun
+            safe_menu = st.session_state.get('active_menu', 'Dashboard')
+            if safe_menu == 'Logout':
+                safe_menu = 'Dashboard'
+                st.session_state.active_menu = safe_menu
+            st.session_state['main_nav_radio'] = safe_menu
             st.rerun()
 
 
@@ -1028,9 +1035,12 @@ selected_menu = st.radio(
     label_visibility="collapsed"
 )
 
-# Handle logout: open dialog instead of navigating
+# Handle logout: open dialog only when user freshly selected Logout
+# (guard: skip if active_menu is already something else — stale radio state)
 if selected_menu == "Logout" and st.session_state.active_menu != "Logout":
-    logout_confirm_dialog()
+    # Double-check the radio widget key matches to avoid stale-state false triggers
+    if st.session_state.get('main_nav_radio') == 'Logout':
+        logout_confirm_dialog()
 
 # Only update active_menu if user explicitly changed the radio (not during form submits)
 elif selected_menu != st.session_state.active_menu:
