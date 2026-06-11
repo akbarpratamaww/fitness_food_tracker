@@ -519,11 +519,35 @@ st.markdown("""
         padding: 1.2rem !important;
         margin-bottom: 1rem !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+        font-family: 'Poppins', sans-serif !important;
     }
+    
+    [data-testid="stChatMessage"] * {
+        font-family: 'Poppins', sans-serif !important;
+    }
+    
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+        color: var(--text-color) !important;
+    }
+
     [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] > p:last-child {
         margin-bottom: 0 !important;
     }
-
+    
+    /* Style Chat Input */
+    div[data-testid="stChatInput"] {
+        background-color: var(--secondary-background-color) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(128, 128, 128, 0.2) !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+        font-family: 'Poppins', sans-serif !important;
+    }
+    div[data-testid="stChatInput"] textarea {
+        font-family: 'Poppins', sans-serif !important;
+        font-size: 0.95rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
