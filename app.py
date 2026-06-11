@@ -519,15 +519,12 @@ st.markdown("""
         padding: 1.2rem !important;
         margin-bottom: 1rem !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-        font-family: 'Poppins', sans-serif !important;
     }
     
-    [data-testid="stChatMessage"] * {
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"],
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] * {
         font-family: 'Poppins', sans-serif !important;
-    }
-    
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
-        font-size: 0.95rem !important;
+        font-size: 1rem !important;
         line-height: 1.6 !important;
         color: var(--text-color) !important;
     }
@@ -546,7 +543,7 @@ st.markdown("""
     }
     div[data-testid="stChatInput"] textarea {
         font-family: 'Poppins', sans-serif !important;
-        font-size: 0.95rem !important;
+        font-size: 1rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
