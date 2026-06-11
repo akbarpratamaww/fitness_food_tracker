@@ -2129,97 +2129,138 @@ elif menu == "📊 ML Predictor":
 
 elif menu == "About":
     st.markdown('<div class="main-header">About This App</div>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    ### 💪 Smart Fitness & Calorie Tracker Chatbot
-    
-    **Version:** 2.0.0
-    **Tech Stack:** Python, Streamlit, SQLite, Scikit-learn, Plotly, Groq API
-    
-    ---
-    
-    ### 🎯 Key Features
-    
-    - **Personalized Calorie Tracking:** Calculates BMR, TDEE, and daily targets based on your profile
-    - **Natural Language Food Logging:** Just describe what you ate
-    - **Activity Tracking:** Log workouts with automatic calorie burn calculation (MET formula)
-    - **AI-Powered Chatbot:** Get personalized fitness advice (Groq Llama 3.3 70B or rule-based fallback)
-    - **Machine Learning Predictor:** Predicts calorie burn during exercise (Random Forest Regressor)
-    - **Fitness Level Classifier:** Classify fitness level (A/B/C/D) using Random Forest algorithm (74.5% accuracy)
-    - **Progress Dashboard:** Visual charts for weight and calorie trends
-    
-    ---
-    
-    ### 📊 How It Works
-    
-    1. **Setup Profile:** Enter your age, gender, height, weight, activity level, and fitness goal
-    2. **Track Daily:** Log your meals and activities throughout the day
-    3. **Monitor Progress:** Check your dashboard to see if you're on track
-    4. **Get AI Advice:** Ask the chatbot any fitness-related questions
-    5. **Check Fitness Level:** Input your physical test results to get fitness classification
-    
-    ---
-    
-    ### 🔬 Formulas Used
-    
-    - **BMR (Mifflin-St Jeor):**
-        - Male: (10 × weight) + (6.25 × height) - (5 × age) + 5
-        - Female: (10 × weight) + (6.25 × height) - (5 × age) - 161
-    
-    - **TDEE:** BMR × Activity Multiplier
-    
-    - **Calories Burned (MET):** (MET × 3.5 × weight) / 200 × minutes
-    
-    - **Machine Learning for Calorie Prediction:** Random Forest Regressor
-    
-    - **Machine Learning for Fitness Classification:** Random Forest with StandardScaler
-    
-    ---
-    
-    ### 📊 Dataset Information
-    
-    - **Food Dataset:** Auto-generated with common foods and calories
-    - **Exercise Dataset:** 2,000 synthetic samples for calorie prediction training
-    - **Fitness Classification Dataset:** Body Performance Data (13,393 samples) from Kaggle
-        - Features: age, gender, height, weight, body fat %, blood pressure, grip strength, flexibility, sit-ups, broad jump
-        - Target: 4 fitness classes (A, B, C, D)
-    
-    ---
-    
-    ### 💡 Tips for Best Results
-    
-    - Log everything you eat and drink
-    - Be consistent with your tracking
-    - Update your weight weekly
-    - Use the AI chatbot for personalized advice
-    - Check your progress regularly to stay motivated
-    - For accurate fitness classification, input honest physical test results
-    
-    ---
-    
-    Made with ❤️ for Final Project
-    """)
-    
-    st.subheader("📁 Dataset Status")
-    col1, col2 = st.columns(2)
-    with col1:
-        try:
-            food_df = pd.read_csv('data/food_dataset.csv')
-            st.success(f"✅ Food dataset: {len(food_df)} items")
-        except:
-            st.info("📝 Food dataset will be created automatically")
-    with col2:
-        try:
-            exercise_df = pd.read_csv('data/exercise_dataset.csv')
-            st.success(f"✅ Exercise dataset: {len(exercise_df)} samples")
-        except:
-            st.info("📝 Exercise dataset will be created automatically")
-    
-    try:
-        body_df = pd.read_csv('data/body_performance.csv')
-        st.success(f"✅ Body performance dataset: {len(body_df)} samples")
-    except:
-        st.warning("⚠️ Body performance dataset not found. Fitness classifier may not work.")
 
+    # ── Hero card ──────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("""
+        <div style="text-align:center; padding:0.5rem 0 1rem 0;">
+            <span style="font-size:3.5rem;">💪</span>
+            <h2 style="margin:0.4rem 0 0.2rem 0;">Smart Fitness &amp; Calorie Tracker</h2>
+            <p style="color:#8E8E93; margin:0;">Version 2.0.0 &nbsp;|&nbsp; Python · Streamlit · SQLite · Scikit-learn · Plotly · Groq API</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Key Features ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 🎯 Key Features")
+        feat_col1, feat_col2 = st.columns(2)
+        features = [
+            ("📊", "Personalized Calorie Tracking", "Menghitung BMR, TDEE, dan target harian berdasarkan profil kamu"),
+            ("🍽️", "Food Log", "Catat makanan yang dimakan setiap hari"),
+            ("🏃", "Activity Tracking", "Catat olahraga dengan kalkulasi pembakaran kalori otomatis (rumus MET)"),
+            ("🤖", "AI Fitness Chatbot", "Saran kebugaran personal (Groq Llama 3.3 70B atau rule-based fallback)"),
+            ("🔮", "ML Calorie Predictor", "Memprediksi kalori terbakar saat olahraga (Random Forest Regressor)"),
+            ("🏅", "Fitness Level Classifier", "Klasifikasi level kebugaran A/B/C/D (Random Forest, akurasi ~74.5%)"),
+            ("📈", "Progress Dashboard", "Grafik interaktif berat badan dan tren kalori harian"),
+            ("🔒", "Session Isolation", "Setiap user punya sesi mandiri berbasis browser cookies"),
+        ]
+        for i, (icon, title, desc) in enumerate(features):
+            col = feat_col1 if i % 2 == 0 else feat_col2
+            with col:
+                st.markdown(f"""
+                <div style="display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.9rem;">
+                    <span style="font-size:1.6rem; line-height:1.2;">{icon}</span>
+                    <div>
+                        <strong>{title}</strong><br>
+                        <span style="font-size:0.85rem; color:#8E8E93;">{desc}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ── How It Works ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 📋 Cara Penggunaan")
+        steps = [
+            ("1", "#4f46e5", "Setup Profile", "Masukkan usia, jenis kelamin, tinggi, berat, level aktivitas, dan tujuan kebugaran"),
+            ("2", "#0ea5e9", "Catat Harian", "Log makanan dan aktivitas sepanjang hari"),
+            ("3", "#10b981", "Pantau Progress", "Cek dashboard untuk melihat apakah kamu on-track"),
+            ("4", "#f59e0b", "Tanya AI Coach", "Gunakan chatbot untuk pertanyaan seputar kebugaran"),
+            ("5", "#ef4444", "Cek Fitness Level", "Input hasil tes fisik untuk mendapat klasifikasi kebugaran kamu"),
+        ]
+        for num, color, title, desc in steps:
+            st.markdown(f"""
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.85rem;">
+                <div style="min-width:2.2rem; height:2.2rem; border-radius:50%; background:{color};
+                            display:flex; align-items:center; justify-content:center;
+                            color:white; font-weight:700; font-size:1rem;">{num}</div>
+                <div><strong>{title}</strong> — <span style="font-size:0.9rem; color:#8E8E93;">{desc}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── Formulas ───────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 🔬 Formula yang Digunakan")
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            st.markdown("""
+            **BMR (Mifflin-St Jeor)**
+            - Pria: `(10×BB) + (6.25×TB) - (5×Usia) + 5`
+            - Wanita: `(10×BB) + (6.25×TB) - (5×Usia) - 161`
+
+            **TDEE**
+            - `BMR × Activity Multiplier`
+            """)
+        with f_col2:
+            st.markdown("""
+            **Kalori Terbakar (MET)**
+            - `(MET × 3.5 × BB) / 200 × menit`
+
+            **ML Calorie Prediction**
+            - Random Forest Regressor
+
+            **ML Fitness Classification**
+            - Random Forest + StandardScaler
+            """)
+
+    # ── Dataset Info ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 📁 Informasi Dataset")
+        d_col1, d_col2 = st.columns(2)
+        with d_col1:
+            try:
+                food_df = pd.read_csv('data/food_dataset.csv')
+                st.success(f"✅ Food dataset: **{len(food_df):,}** items")
+            except:
+                st.info("📝 Food dataset akan dibuat otomatis")
+            try:
+                exercise_df = pd.read_csv('data/exercise_dataset.csv')
+                st.success(f"✅ Exercise dataset: **{len(exercise_df):,}** samples")
+            except:
+                st.info("📝 Exercise dataset akan dibuat otomatis")
+        with d_col2:
+            try:
+                body_df = pd.read_csv('data/body_performance.csv')
+                st.success(f"✅ Body performance dataset: **{len(body_df):,}** samples")
+                st.caption("Features: usia, gender, tinggi, berat, body fat %, tekanan darah, grip strength, fleksibilitas, sit-ups, broad jump → Target: kelas A/B/C/D")
+            except:
+                st.warning("⚠️ Body performance dataset tidak ditemukan. Fitness classifier mungkin tidak berfungsi.")
+
+    # ── Tips ───────────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 💡 Tips untuk Hasil Terbaik")
+        tips_col1, tips_col2 = st.columns(2)
+        tips = [
+            "Catat semua yang kamu makan dan minum",
+            "Konsisten dalam tracking setiap hari",
+            "Update berat badan setiap minggu",
+            "Gunakan AI chatbot untuk saran personal",
+            "Cek progress secara rutin agar tetap termotivasi",
+            "Input hasil tes fisik yang jujur untuk klasifikasi akurat",
+        ]
+        for i, tip in enumerate(tips):
+            col = tips_col1 if i % 2 == 0 else tips_col2
+            with col:
+                st.markdown(f"✔️ {tip}")
+
+    # ── Footer ─────────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("""
+        <div style="text-align:center; padding:0.5rem 0;">
+            <p style="margin:0; color:#8E8E93; font-size:0.9rem;">
+                Made with ❤️ for Final Project &nbsp;·&nbsp; Smart Fitness &amp; Food Tracker
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
 if __name__ == "__main__":
     pass
