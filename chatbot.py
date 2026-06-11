@@ -184,12 +184,27 @@ class FitnessChatbot:
                     top_p=0.9
                 )
                 
-                return second_response.choices[0].message.content
+                return self._clean_response(second_response.choices[0].message.content)
 
-            return response_message.content
+            return self._clean_response(response_message.content)
 
         except Exception as e:
             return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
+
+    def _clean_response(self, text):
+        """Remove any raw function call syntax that leaked into the text response."""
+        if text is None:
+            return ""
+        import re
+        # Strip <function=xxx>{...}</function> patterns
+        cleaned = re.sub(r'<function=\w+>.*?</function>', '', text, flags=re.DOTALL)
+        # Strip ```json {...} ``` blocks that look like function args
+        cleaned = re.sub(r'```json\s*\{[^`]*\}\s*```', '', cleaned, flags=re.DOTALL)
+        cleaned = cleaned.strip()
+        # If after cleaning the response is empty, return a generic confirmation
+        if not cleaned:
+            cleaned = "✅ Sudah dicatat ke log Anda!"
+        return cleaned
 
     def _build_system_prompt(self):
         """Build a rich system prompt with user profile and coaching instructions."""
@@ -234,6 +249,7 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
 8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
 9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
+10. **NEVER write raw function call syntax in your text responses** – NEVER output text like `<function=log_food>{...}</function>` or `<function=log_activity>{...}</function>`. If you need to log data, use the actual tool call mechanism. Writing function syntax as plain text is strictly forbidden and will break the application.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
