@@ -186,10 +186,48 @@ class FitnessChatbot:
                 
                 return second_response.choices[0].message.content
 
-            return response_message.content
+            # Handle cases where model leaks tool calls into text instead of proper tool_calls array
+            content = response_message.content or ""
+            if "<function=" in content:
+                import re, json
+                from datetime import date
+                from database import add_food_log, add_activity_log
+                
+                matches = re.finditer(r'<function=([^>]+)>(.*?)</function>', content, flags=re.DOTALL)
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                
+                for match in matches:
+                    func_name = match.group(1)
+                    try:
+                        args = json.loads(match.group(2))
+                    except:
+                        continue
+                        
+                    if user_id:
+                        if func_name == "log_food":
+                            add_food_log(
+                                user_id=user_id, food_name=args.get("food_name", "Unknown Food"),
+                                calories=args.get("calories", 0), protein=args.get("protein", 0),
+                                carbs=args.get("carbs", 0), fat=args.get("fat", 0),
+                                meal_type=args.get("meal_type", "Snack"), log_date=date.today().isoformat()
+                            )
+                        elif func_name == "log_activity":
+                            add_activity_log(
+                                user_id=user_id, activity_type=args.get("activity_type", "Exercise"),
+                                duration_minutes=args.get("duration_minutes", 0), calories_burned=args.get("calories_burned", 0),
+                                intensity=args.get("intensity", "Medium"), log_date=date.today().isoformat()
+                            )
+                
+                # Clean the raw function tags from the content
+                content = re.sub(r'<function=[^>]+>.*?</function>', '', content, flags=re.DOTALL).strip()
+                if not content:
+                    return "✅ Data berhasil dicatat! Ada lagi yang bisa saya bantu hari ini?"
+            
+            return content
 
         except Exception as e:
-            return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
+            # Friendly error message without technical details
+            return "⚠️ Maaf, AI Coach sedang mengalami sedikit kendala sistem. Mohon tunggu sebentar dan coba tanyakan lagi ya."
 
     def _build_system_prompt(self):
         """Build a rich system prompt with user profile and coaching instructions."""
