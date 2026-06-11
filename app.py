@@ -516,9 +516,11 @@ controller = CookieController()
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
-# Recover session from cookie — skip if user just logged out (query param survives browser reload)
-_just_logged_out = st.query_params.get('logged_out') == '1'
-if st.session_state.user_id is None and not _just_logged_out:
+# Recover session from cookie.
+# Check dedicated logout-flag cookie first — this survives browser reloads and
+# cannot be cleared by the user editing the URL bar.
+_logout_flag = controller.get('user_logout')
+if st.session_state.user_id is None and not _logout_flag:
     try:
         token = controller.get('user_session')
         if token and token.strip():
@@ -604,11 +606,10 @@ if st.session_state.user_id is None:
                     if user_row is not None:
                         st.session_state.user_id = int(user_row['user_id'])
                         st.session_state.user = user_row.to_dict()
-                        st.session_state.logged_out = False
                         token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                        controller.set('user_session', token)
-                        if st.query_params:
-                            st.query_params.clear()
+                        controller.set('user_session', token, max_age=2592000)  # 30 days
+                        controller.set('user_logout', '', max_age=0)  # clear logout flag
+                        st.query_params.clear()
                         st.session_state.active_menu = "Dashboard"
                         st.session_state.chatbot = None
                         st.session_state.messages = []
@@ -786,11 +787,10 @@ if st.session_state.user_id is None:
                             user_row = get_user(new_uid)
                             st.session_state.user_id = new_uid
                             st.session_state.user = user_row.to_dict()
-                            st.session_state.logged_out = False
                             token = f"{new_uid}:{sign_user_id(new_uid)}"
-                            controller.set('user_session', token)
-                            if st.query_params:
-                                st.query_params.clear()
+                            controller.set('user_session', token, max_age=2592000)  # 30 days
+                            controller.set('user_logout', '', max_age=0)  # clear logout flag
+                            st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
                             st.session_state.messages = []
@@ -871,13 +871,14 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                # Overwrite cookie with empty value (more reliable than remove())
-                controller.set('user_session', '', max_age=0)
-                # Clear all session state
+                # Set a dedicated logout-flag cookie (persists in browser, survives reload)
+                # This blocks session recovery even if user_session cookie still lingers.
+                controller.set('user_logout', '1', max_age=86400)  # 24 hour logout flag
+                controller.set('user_session', '', max_age=0)      # attempt to clear session cookie
+                # Clear all Streamlit session state
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
-                # Set query param as logout flag — survives browser reload unlike session_state
-                st.query_params['logged_out'] = '1'
+                st.query_params.clear()
                 st.rerun()
         
         # Quick terminology guide for laypeople
