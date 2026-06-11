@@ -184,16 +184,17 @@ class FitnessChatbot:
                     top_p=0.9
                 )
                 
-                return second_response.choices[0].message.content
+                final_content = second_response.choices[0].message.content or ""
+            else:
+                final_content = response_message.content or ""
 
-            # Handle cases where model leaks tool calls into text instead of proper tool_calls array
-            content = response_message.content or ""
-            if "<function=" in content:
+            # Handle cases where model leaks tool calls into text
+            if "<function=" in final_content:
                 import re, json
                 from datetime import date
                 from database import add_food_log, add_activity_log
                 
-                matches = re.finditer(r'<function=([^>]+)>(.*?)</function>', content, flags=re.DOTALL)
+                matches = re.finditer(r'<function=([^>]+)>(.*?)</function>', final_content, flags=re.DOTALL)
                 user_id = self.user_data.get('user_id') if self.user_data else None
                 
                 for match in matches:
@@ -219,11 +220,11 @@ class FitnessChatbot:
                             )
                 
                 # Clean the raw function tags from the content
-                content = re.sub(r'<function=[^>]+>.*?</function>', '', content, flags=re.DOTALL).strip()
-                if not content:
+                final_content = re.sub(r'<function=[^>]+>.*?</function>', '', final_content, flags=re.DOTALL).strip()
+                if not final_content:
                     return "✅ Data berhasil dicatat! Ada lagi yang bisa saya bantu hari ini?"
             
-            return content
+            return final_content
 
         except Exception as e:
             # Friendly error message without technical details

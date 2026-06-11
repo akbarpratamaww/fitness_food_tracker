@@ -516,8 +516,8 @@ st.markdown("""
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 16px !important;
-        padding: 1.2rem !important;
-        margin-bottom: 1rem !important;
+        padding: 1.5rem 2rem !important;
+        margin-bottom: 1.5rem !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
     }
     
