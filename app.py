@@ -501,6 +501,9 @@ controller = CookieController()
 # Initialize session state
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
+
+# Recover session from cookie if available and user not explicitly logged out
+if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
     try:
         token = controller.get('user_session')
         if token:
@@ -511,8 +514,10 @@ if 'user_id' not in st.session_state:
                     st.session_state.user_id = int(uid)
                     if st.query_params:
                         st.query_params.clear()
+                    st.rerun()
     except Exception:
         pass
+
 if 'chatbot' not in st.session_state:
     st.session_state.chatbot = None
 if 'messages' not in st.session_state:
@@ -585,6 +590,7 @@ if st.session_state.user_id is None:
                     if user_row is not None:
                         st.session_state.user_id = int(user_row['user_id'])
                         st.session_state.user = user_row.to_dict()
+                        st.session_state.logged_out = False
                         token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                         controller.set('user_session', token)
                         if st.query_params:
@@ -766,6 +772,7 @@ if st.session_state.user_id is None:
                             user_row = get_user(new_uid)
                             st.session_state.user_id = new_uid
                             st.session_state.user = user_row.to_dict()
+                            st.session_state.logged_out = False
                             token = f"{new_uid}:{sign_user_id(new_uid)}"
                             controller.set('user_session', token)
                             if st.query_params:
@@ -851,9 +858,12 @@ if menu == "Dashboard":
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
                 controller.remove('user_session')
+                st.session_state.logged_out = True
+                st.session_state.user_id = None
                 st.query_params.clear()
                 for key in list(st.session_state.keys()):
-                    del st.session_state[key]
+                    if key != 'logged_out':
+                        del st.session_state[key]
                 st.rerun()
         
         # Quick terminology guide for laypeople
