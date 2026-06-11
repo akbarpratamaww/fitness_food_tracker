@@ -509,11 +509,18 @@ st.markdown("""
 # Initialize database
 init_database()
 
+import extra_streamlit_components as stx
+import datetime
+
+# Create CookieManager without caching to avoid Streamlit 1.38+ widget cache warnings
+cookie_manager = stx.CookieManager(key="auth_cookie_manager")
+
 # Initialize session state
 if 'user_id' not in st.session_state:
-    local_uid = get_local_session()
-    if local_uid is not None:
-        st.session_state.user_id = int(local_uid)
+    # Try to read from cookie first
+    cookie_user_id = cookie_manager.get("user_id")
+    if cookie_user_id is not None:
+        st.session_state.user_id = int(cookie_user_id)
         if st.query_params:
             st.query_params.clear()
     else:
@@ -593,7 +600,7 @@ if st.session_state.user_id is None:
                         if user_row is not None:
                             st.session_state.user_id = int(user_row['user_id'])
                             st.session_state.user = user_row.to_dict()
-                            save_local_session(st.session_state.user_id)
+                            cookie_manager.set("user_id", str(st.session_state.user_id), expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
                             if st.query_params:
                                 st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
