@@ -522,11 +522,15 @@ st.markdown("""
     }
     
     [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"],
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] * {
-        font-family: 'Poppins', sans-serif !important;
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
+        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
         font-size: 1rem !important;
+        margin-bottom: -1rem !important;
+        color: inherit !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow-wrap: break-word !important;
         line-height: 1.6 !important;
-        color: var(--text-color) !important;
     }
 
     [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] > p:last-child {
@@ -539,10 +543,10 @@ st.markdown("""
         border-radius: 16px !important;
         border: 1px solid rgba(128, 128, 128, 0.2) !important;
         box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
-        font-family: 'Poppins', sans-serif !important;
+        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
     }
     div[data-testid="stChatInput"] textarea {
-        font-family: 'Poppins', sans-serif !important;
+        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
         font-size: 1rem !important;
     }
 </style>
