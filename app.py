@@ -900,26 +900,47 @@ menu_options = [
 @st.dialog("Konfirmasi Logout")
 def logout_confirm_dialog():
     st.markdown("""
-    <div style="text-align:center; padding: 0.5rem 0 1.5rem 0;">
-        <span style="font-size:2.8rem;">🔒</span>
-        <p style="font-size:1.05rem; margin-top:0.8rem; color: var(--text-color);">Apakah Anda yakin ingin keluar dari <strong>Smart Fitness & Food Tracker</strong>?</p>
+    <style>
+        /* Move dialog lower and center it properly */
+        div[data-testid="stDialog"] > div {
+            margin-top: 10vh !important;
+        }
+        /* Fix the dialog modal container */
+        div[data-testid="stDialog"] [role="dialog"] {
+            margin-top: 10vh !important;
+        }
+        /* Red confirm button */
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button {
+            background-color: #EF4444 !important;
+            color: white !important;
+            border: 1px solid #EF4444 !important;
+            font-weight: 700 !important;
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button:hover {
+            background-color: #DC2626 !important;
+            border-color: #DC2626 !important;
+        }
+        /* Neutral cancel button - same height */
+        div[data-testid="stDialog"] div[data-testid="column"]:last-child button {
+            height: 2.6rem !important;
+        }
+        /* Ensure both column blocks are vertically aligned */
+        div[data-testid="stDialog"] div[data-testid="stHorizontalBlock"] {
+            align-items: center !important;
+        }
+    </style>
+    <div style="text-align:center; padding: 1rem 0 1.5rem 0;">
+        <div style="font-size:3.5rem; line-height:1; margin-bottom:1rem; display:block;">🔒</div>
+        <p style="font-size:1.05rem; margin:0; color: var(--text-color);">
+            Apakah Anda yakin ingin keluar dari<br>
+            <strong>Smart Fitness &amp; Food Tracker</strong>?
+        </p>
     </div>
     """, unsafe_allow_html=True)
+
     col_yes, col_no = st.columns(2)
     with col_yes:
-        st.markdown("""
-        <style>
-            div[data-testid="stDialog"] div[data-testid="column"]:first-child button {
-                background-color: #EF4444 !important;
-                color: white !important;
-                border: none !important;
-                font-weight: 700 !important;
-            }
-            div[data-testid="stDialog"] div[data-testid="column"]:first-child button:hover {
-                background-color: #DC2626 !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
         if st.button("Ya, Keluar", use_container_width=True, key="dialog_confirm_logout"):
             controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
             keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
@@ -933,6 +954,7 @@ def logout_confirm_dialog():
     with col_no:
         if st.button("Batal", use_container_width=True, key="dialog_cancel_logout"):
             st.rerun()
+
 
 # ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
 current_idx = menu_options.index(st.session_state.active_menu) if st.session_state.active_menu in menu_options else 0
