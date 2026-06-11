@@ -189,7 +189,58 @@ class FitnessChatbot:
             return self._clean_response(response_message.content)
 
         except Exception as e:
-            return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
+            return self._handle_api_error(e)
+
+    def _handle_api_error(self, e):
+        """Convert technical API errors into friendly user-facing messages."""
+        error_str = str(e).lower()
+
+        # Rate limit / quota exceeded
+        if '429' in str(e) or 'rate_limit' in error_str or 'rate limit' in error_str or 'tokens per day' in error_str or 'tpd' in error_str:
+            import re
+            # Try to extract wait time from error message
+            wait_match = re.search(r'try again in (\d+m\d+\.?\d*s|\d+\.?\d*s|\d+ minute)', str(e), re.IGNORECASE)
+            wait_info = f" Coba lagi dalam sekitar **{wait_match.group(1)}**." if wait_match else " Coba lagi dalam beberapa menit."
+            return (
+                "⏳ **FitBot sedang istirahat sebentar!**\n\n"
+                "AI Coach kita sudah banyak membantu hari ini dan perlu jeda sejenak. "
+                f"{wait_info}\n\n"
+                "💡 Sementara menunggu, kamu bisa:\n"
+                "- Lihat progres di menu **Dashboard**\n"
+                "- Catat makanan di menu **Food Log**\n"
+                "- Catat olahraga di menu **Activity Log**"
+            )
+
+        # Authentication / API key invalid
+        if '401' in str(e) or 'invalid api key' in error_str or 'unauthorized' in error_str or 'authentication' in error_str:
+            return (
+                "🔑 **FitBot tidak dapat terhubung saat ini.**\n\n"
+                "Terjadi masalah konfigurasi pada layanan AI. "
+                "Silakan hubungi admin aplikasi untuk membantu."
+            )
+
+        # Network / connection error
+        if 'timeout' in error_str or 'connection' in error_str or 'network' in error_str or 'unreachable' in error_str:
+            return (
+                "🌐 **Koneksi bermasalah.**\n\n"
+                "FitBot tidak dapat terhubung ke server AI saat ini. "
+                "Pastikan koneksi internet kamu stabil, lalu coba kirim pesan lagi."
+            )
+
+        # Model overloaded / server error
+        if '503' in str(e) or '500' in str(e) or 'overloaded' in error_str or 'service unavailable' in error_str:
+            return (
+                "🛠️ **Server AI sedang sibuk.**\n\n"
+                "Terlalu banyak pengguna mengakses FitBot sekarang. "
+                "Tunggu sebentar dan coba lagi ya! 🙏"
+            )
+
+        # Generic fallback — still friendly, no raw details
+        return (
+            "😅 **FitBot mengalami kendala teknis.**\n\n"
+            "Maaf atas ketidaknyamanannya! Silakan coba kirim pesan lagi. "
+            "Jika masalah terus berlanjut, coba refresh halaman."
+        )
 
     def _clean_response(self, text):
         """Remove any raw function call syntax that leaked into the text response."""
