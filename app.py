@@ -405,6 +405,22 @@ st.markdown("""
         color: #EF4444 !important;
     }
  
+    /* Thin yellow reset button — id anchor approach */
+    #reset-btn-wrapper + div button,
+    #reset-btn-wrapper ~ div button,
+    div:has(> #reset-btn-wrapper) button {
+        background: rgba(245, 158, 11, 0.06) !important;
+        color: #F59E0B !important;
+        border: 1px solid rgba(245, 158, 11, 0.40) !important;
+        font-weight: 700 !important;
+    }
+    #reset-btn-wrapper + div button:hover,
+    #reset-btn-wrapper ~ div button:hover,
+    div:has(> #reset-btn-wrapper) button:hover {
+        background: rgba(245, 158, 11, 0.15) !important;
+        border-color: rgba(245, 158, 11, 0.65) !important;
+        color: #F59E0B !important;
+    }
  
     /* Premium dataframes styling */
     div[data-testid="stDataFrame"] {
@@ -1073,21 +1089,7 @@ if menu == "Dashboard":
             with r1_title_col:
                 st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
             with r1_btn_col:
-                st.markdown("""
-                <style>
-                    /* Thin yellow reset button — mirrors the Logout red style */
-                    div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button {
-                        background: rgba(245, 158, 11, 0.06) !important;
-                        color: #F59E0B !important;
-                        border: 1px solid rgba(245, 158, 11, 0.4) !important;
-                        font-weight: 700 !important;
-                    }
-                    div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button:hover {
-                        background: rgba(245, 158, 11, 0.15) !important;
-                        border-color: rgba(245, 158, 11, 0.65) !important;
-                    }
-                </style>
-                """, unsafe_allow_html=True)
+                st.markdown('<div id="reset-btn-wrapper"></div>', unsafe_allow_html=True)
                 if st.button("Reset Kalori Hari Ini", key="reset_daily_btn", use_container_width=True):
                     reset_today_confirm_dialog(user['user_id'])
             col1, col2, col3, col4 = st.columns(4)
