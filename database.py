@@ -518,3 +518,46 @@ def get_today_summary(user_id):
     
     conn.close()
     return float(calories_in), float(calories_out)
+
+def reset_today_logs(user_id):
+    """Delete all food and activity logs for today for the given user."""
+    today = date.today().isoformat()
+    conn = get_connection()
+    cursor = conn.cursor()
+    p = get_placeholder()
+    try:
+        cursor.execute(f"DELETE FROM food_log WHERE user_id = {p} AND log_date = {p}", (user_id, today))
+        cursor.execute(f"DELETE FROM activity_log WHERE user_id = {p} AND log_date = {p}", (user_id, today))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+def add_custom_food_to_dataset(food_name, calories_per_100g, protein_g, carbs_g, fat_g):
+    """Add a custom food item to the food_dataset table in the SQLite database and append to CSV."""
+    conn = sqlite3.connect(DATASET_DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO food_dataset (Food, Calories_per_100g, Protein_g, Carbs_g, Fat_g)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (food_name, calories_per_100g, protein_g, carbs_g, fat_g))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+        
+    # Also append to the CSV file to keep them in sync
+    csv_path = "data/food_dataset.csv"
+    if os.path.exists(csv_path):
+        try:
+            df_new = pd.DataFrame([{
+                'Food': food_name,
+                'Calories_per_100g': calories_per_100g,
+                'Protein_g': protein_g,
+                'Carbs_g': carbs_g,
+                'Fat_g': fat_g
+            }])
+            df_new.to_csv(csv_path, mode='a', header=False, index=False)
+        except Exception as e:
+            print(f"Error appending to food_dataset.csv: {e}")

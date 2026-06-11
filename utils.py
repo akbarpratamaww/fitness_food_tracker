@@ -5,6 +5,56 @@ from datetime import date, timedelta
 # Import fungsi dari database.py
 from database import read_table_to_df, table_exists
 
+import hashlib
+import hmac
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY", "FitTrackAI_SecretKey_9832472")
+
+def sign_user_id(user_id):
+    """Generate a secure signature for remember-me user session."""
+    data = f"{user_id}:{SECRET_KEY}"
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+
+def verify_user_id(user_id, signature):
+    """Verify if the user_id signature is valid."""
+    if not user_id or not signature:
+        return False
+    expected = sign_user_id(user_id)
+    return hmac.compare_digest(expected, signature)
+
+import json
+
+SESSION_FILE = "data/session.json"
+
+def save_local_session(user_id):
+    """Save user session to a local file."""
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+    try:
+        with open(SESSION_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'user_id': user_id}, f)
+    except Exception as e:
+        print(f"Error saving local session: {e}")
+
+def get_local_session():
+    """Get user_id from the local session file if it exists."""
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('user_id')
+        except Exception as e:
+            print(f"Error reading local session: {e}")
+    return None
+
+def clear_local_session():
+    """Delete the local session file."""
+    if os.path.exists(SESSION_FILE):
+        try:
+            os.remove(SESSION_FILE)
+        except Exception as e:
+            print(f"Error clearing local session: {e}")
+
 # Activity MET values (Metabolic Equivalent of Task)
 # Calories burned per minute = MET * 3.5 * weight_kg / 200
 ACTIVITY_MET = {
