@@ -621,28 +621,16 @@ if st.session_state.user_id is None:
                 if not login_username or not login_password:
                     st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                 else:
-                    user_row = authenticate_user(login_username, login_password)
-                    if user_row is not None:
-                        st.session_state.user_id = int(user_row['user_id'])
-                        st.session_state.user = user_row.to_dict()
-                        st.session_state.logged_out = False
-                        token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                        controller.set('user_session', token)
-                        if st.query_params:
-                            st.query_params.clear()
-                        st.session_state.active_menu = "Dashboard"
-                        st.session_state.chatbot = None
-                        st.session_state.messages = []
-                        st.session_state.greeting_sent = False
-                        st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
-                        time.sleep(0.8)
-                        st.rerun()
+                    if not username_exists(login_username):
+                        st.markdown('<div class="danger-box">❌ Username tidak ditemukan. Silakan ke tab Register untuk membuat akun.</div>', unsafe_allow_html=True)
                     else:
                         user_row = authenticate_user(login_username, login_password)
                         if user_row is not None:
                             st.session_state.user_id = int(user_row['user_id'])
                             st.session_state.user = user_row.to_dict()
-                            cookie_manager.set("user_id", str(st.session_state.user_id), expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
+                            st.session_state.logged_out = False
+                            token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
+                            controller.set('user_session', token)
                             if st.query_params:
                                 st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
