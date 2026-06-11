@@ -8,10 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Path database utama (untuk data transaksional)
-DB_PATH = "data/fitness_tracker.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "data", "fitness_tracker.db")
 
 # Path database untuk dataset (bisa sama atau berbeda. Sesuaikan dengan file .db Anda)
-DATASET_DB_PATH = "data/fitnessfoodtracker.db"   # ganti dengan nama file database Anda
+DATASET_DB_PATH = os.path.join(BASE_DIR, "data", "fitnessfoodtracker.db")   # ganti dengan nama file database Anda
 
 def get_connection():
     """Get database connection based on environment configurations."""
@@ -537,7 +538,51 @@ def add_custom_food_to_dataset(food_name, calories_per_100g, protein_g, carbs_g,
     """Add a custom food item to the food_dataset table in the SQLite database and append to CSV."""
     conn = sqlite3.connect(DATASET_DB_PATH)
     cursor = conn.cursor()
+    csv_path = os.path.join(BASE_DIR, "data", "food_dataset.csv")
     try:
+        # Self-healing: create the table if it does not exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS food_dataset (
+                Food TEXT,
+                Calories_per_100g REAL,
+                Protein_g REAL,
+                Carbs_g REAL,
+                Fat_g REAL
+            )
+        ''')
+        
+        # Check if the table is empty. If empty, populate it.
+        cursor.execute("SELECT COUNT(*) FROM food_dataset")
+        count = cursor.fetchone()[0]
+        if count == 0:
+            if os.path.exists(csv_path):
+                try:
+                    df = pd.read_csv(csv_path)
+                    df.to_sql("food_dataset", conn, if_exists="append", index=False)
+                except Exception as e:
+                    print(f"Error seeding food_dataset table from CSV: {e}")
+            else:
+                # Seeding with basic sample foods
+                sample_foods = pd.DataFrame({
+                    'Food': ['Apple', 'Banana', 'Orange', 'Chicken Breast', 'Salmon', 'Rice', 'Pasta', 
+                             'Bread', 'Egg', 'Milk', 'Yogurt', 'Cheese', 'Broccoli', 'Spinach', 'Carrot',
+                             'Pizza', 'Burger', 'French Fries', 'Ice Cream', 'Chocolate Cake'],
+                    'Calories_per_100g': [52, 89, 47, 165, 208, 130, 131, 265, 155, 42, 59, 402, 34, 23, 41,
+                                           285, 354, 312, 207, 424],
+                    'Protein_g': [0.3, 1.1, 0.9, 31, 20, 2.7, 5, 9, 13, 3.4, 10, 25, 2.8, 2.9, 0.9,
+                                  12, 17, 3.4, 3.5, 5.3],
+                    'Carbs_g': [14, 23, 12, 0, 0, 28, 25, 49, 1.1, 5, 3.6, 1.3, 7, 3.6, 10,
+                                30, 30, 41, 24, 58],
+                    'Fat_g': [0.2, 0.3, 0.1, 3.6, 13, 0.3, 1.1, 3.2, 11, 1, 0.4, 33, 0.4, 0.4, 0.2,
+                              10, 20, 15, 11, 20]
+                })
+                sample_foods.to_sql("food_dataset", conn, if_exists="append", index=False)
+                try:
+                    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+                    sample_foods.to_csv(csv_path, index=False)
+                except:
+                    pass
+
         cursor.execute('''
             INSERT INTO food_dataset (Food, Calories_per_100g, Protein_g, Carbs_g, Fat_g)
             VALUES (?, ?, ?, ?, ?)
@@ -548,7 +593,6 @@ def add_custom_food_to_dataset(food_name, calories_per_100g, protein_g, carbs_g,
         conn.close()
         
     # Also append to the CSV file to keep them in sync
-    csv_path = "data/food_dataset.csv"
     if os.path.exists(csv_path):
         try:
             df_new = pd.DataFrame([{
