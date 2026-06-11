@@ -714,7 +714,7 @@ if logged_user is None:
 
 menu_options = [
     "🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", "🏋️ Fitness Level Classifier",
-    "📈 Progress", "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"
+    "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"
 ]
 
 # ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
@@ -819,45 +819,227 @@ if menu == "🏠 Dashboard":
                 help="Body Mass Index (Indeks Massa Tubuh) adalah pengukuran lemak tubuh berdasarkan tinggi dan berat badan untuk menentukan kategori berat badan ideal."
             )
         
-        # Weekly calorie chart
+        # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
         st.markdown("---")
-        st.subheader("📊 Weekly Calorie Summary")
+        col_r1a, col_r1b = st.columns(2)
         
-        food_logs = get_food_logs(user['user_id'], 7)
-        activity_logs = get_activity_logs(user['user_id'], 7)
+        with col_r1a:
+            st.subheader("📊 Weekly Calorie Summary")
+            food_logs = get_food_logs(user['user_id'], 7)
+            activity_logs = get_activity_logs(user['user_id'], 7)
+            
+            dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+            daily_in = []
+            daily_out = []
+            
+            for d in dates:
+                day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
+                day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
+                daily_in.append(day_in)
+                daily_out.append(day_out)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF5722'))
+            fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#06B6D4'))
+            fig.update_layout(
+                barmode='group', 
+                title='Daily Calorie Comparison (7 Days)', 
+                height=350,
+                template='plotly_dark',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                margin=dict(l=20, r=20, t=50, b=20)
+            )
+            fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
+            fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col_r1b:
+            st.subheader("🔥 Calorie Trend Analysis")
+            food_logs_30 = get_food_logs(user['user_id'], 30)
+            activity_logs_30 = get_activity_logs(user['user_id'], 30)
+            
+            if len(food_logs_30) > 0 or len(activity_logs_30) > 0:
+                daily_summary = {}
+                for _, row in food_logs_30.iterrows():
+                    date_str = row['log_date']
+                    if date_str not in daily_summary:
+                        daily_summary[date_str] = {'in': 0, 'out': 0}
+                    daily_summary[date_str]['in'] += row['calories']
+                
+                for _, row in activity_logs_30.iterrows():
+                    date_str = row['log_date']
+                    if date_str not in daily_summary:
+                        daily_summary[date_str] = {'in': 0, 'out': 0}
+                    daily_summary[date_str]['out'] += row['calories_burned']
+                
+                trend_data = pd.DataFrame([
+                    {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
+                    for d, v in sorted(daily_summary.items())
+                ])
+                
+                fig_trend = go.Figure()
+                fig_trend.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
+                                         mode='lines+markers', line=dict(color='#FF5722', width=2.5)))
+                fig_trend.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
+                                         mode='lines+markers', line=dict(color='#06B6D4', width=2.5)))
+                fig_trend.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
+                                         mode='lines+markers', line=dict(color='#8B5CF6', width=2, dash='dash')))
+                fig_trend.update_layout(
+                    title='Daily Calorie Trends (30 Days)', 
+                    height=350, 
+                    hovermode='x unified',
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                    margin=dict(l=20, r=20, t=50, b=20)
+                )
+                fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
+                fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                st.plotly_chart(fig_trend, use_container_width=True)
+            else:
+                st.info("Log your meals and activities to see 30-day calorie trend charts!")
         
-        dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
-        daily_in = []
-        daily_out = []
+        # ==================== ROW 2: WEIGHT PROGRESS ====================
+        st.markdown("---")
+        st.subheader("⚖️ Weight Progress")
+        weight_history = get_weight_progress(user['user_id'])
+        if len(weight_history) > 0:
+            weight_history['record_date'] = pd.to_datetime(weight_history['record_date']).dt.strftime('%Y-%m-%d')
         
-        for d in dates:
-            day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
-            day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
-            daily_in.append(day_in)
-            daily_out.append(day_out)
+        # Sub-columns inside weight progress to fit Update Weight form neatly
+        col_inner1, col_inner2 = st.columns([2, 1])
+        with col_inner1:
+            if len(weight_history) > 0:
+                fig_w = px.line(
+                    weight_history, 
+                    x='record_date', 
+                    y='weight_kg',
+                    title='Weight Over Time',
+                    labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
+                )
+                fig_w.update_traces(line=dict(color='#FF5722', width=3))
+                fig_w.update_layout(
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    height=280
+                )
+                fig_w.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
+                fig_w.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                st.plotly_chart(fig_w, use_container_width=True)
+                
+                start_weight = weight_history.iloc[0]['weight_kg']
+                latest_weight = weight_history.iloc[-1]['weight_kg']
+                change = latest_weight - start_weight
+                
+                if change < 0:
+                    st.success(f"✅ Lost {abs(change):.1f} kg since start!")
+                elif change > 0:
+                    st.info(f"📈 Gained {change:.1f} kg since start")
+                else:
+                    st.info("Weight is stable")
+            else:
+                st.info("No weight history found.")
+                
+        with col_inner2:
+            st.markdown("**Update Weight**")
+            new_weight = st.number_input("Weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']), key="dash_update_weight_input")
+            if st.button("📝 Record Weight", key="dash_record_weight_btn"):
+                update_weight(user['user_id'], new_weight)
+                st.success("Recorded!")
+                st.rerun()
         
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF5722'))
-        fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#06B6D4'))
-        fig.update_layout(
-            barmode='group', 
-            title='Daily Calorie Comparison', 
-            height=400,
-            template='plotly_dark',
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-            margin=dict(l=20, r=20, t=50, b=20)
-        )
-        fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
-        fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
-        st.plotly_chart(fig, use_container_width=True)
+        # ==================== ROW 2.5: WEIGHT FORECASTING ====================
+        st.markdown("---")
+        st.subheader("🔮 Weight Forecasting (ML)")
+        forecast_col1, forecast_col2 = st.columns([1, 2])
+        with forecast_col1:
+            forecast_days = st.selectbox(
+                "Forecast Range",
+                options=[7, 14, 30],
+                format_func=lambda x: f"{x} days",
+                index=2,
+                key="dash_forecast_horizon",
+            )
         
-        # Recent activities
+        result_fc = forecast_weight(user['user_id'], days=forecast_days)
+        if result_fc['enough_data']:
+            forecast_df = result_fc['forecast']
+            hist_df = result_fc['history'].copy()
+            coef = result_fc['model_coef']
+            r2 = result_fc['model_r2']
+            
+            # Forecasting Metrics
+            fm1, fm2, fm3 = st.columns(3)
+            with fm1:
+                direction = "📉 Down" if coef < 0 else ("📈 Up" if coef > 0 else "➡️ Stable")
+                st.metric("Trend", f"{abs(coef):.3f} kg/d", delta=direction)
+            with fm2:
+                st.metric("R² Score", f"{r2:.2f}")
+            with fm3:
+                pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
+                st.metric("Forecast", f"{pred_end:.1f} kg")
+            
+            fig_fc = go.Figure()
+            hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
+            fig_fc.add_trace(go.Scatter(
+                x=hist_df['record_date'],
+                y=hist_df['weight_kg'],
+                mode='lines+markers',
+                name='History',
+                line=dict(color='#4ECDC4', width=2.5),
+                marker=dict(size=6),
+            ))
+            bridge_dates = [
+                hist_df['record_date'].iloc[-1],
+                forecast_df['date'].iloc[0]
+            ]
+            bridge_weights = [
+                hist_df['weight_kg'].iloc[-1],
+                forecast_df['predicted_weight_kg'].iloc[0]
+            ]
+            fig_fc.add_trace(go.Scatter(
+                x=bridge_dates,
+                y=bridge_weights,
+                mode='lines',
+                line=dict(color='#FF6B6B', width=1.5, dash='dot'),
+                showlegend=False,
+            ))
+            fig_fc.add_trace(go.Scatter(
+                x=forecast_df['date'],
+                y=forecast_df['predicted_weight_kg'],
+                mode='lines+markers',
+                name=f'Forecast',
+                line=dict(color='#FF6B6B', width=2.5, dash='dot'),
+                marker=dict(size=5, symbol='diamond'),
+            ))
+            fig_fc.update_layout(
+                template='plotly_dark',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=200,
+                hovermode='x unified',
+                showlegend=False
+            )
+            st.plotly_chart(fig_fc, use_container_width=True)
+        else:
+            st.info(
+                "⚠️ Minimum 2 weight logs required to predict trend."
+            )
+                
+        # ==================== ROW 3: RECENT ACTIVITIES ====================
+        st.markdown("---")
         st.subheader("📋 Recent Activities")
-        col1, col2 = st.columns(2)
+        col_r3a, col_r3b = st.columns(2)
         
-        with col1:
+        with col_r3a:
             st.markdown("**🍎 Recent Meals**")
             if len(food_logs) > 0:
                 recent_meals = food_logs.head(5)
@@ -866,7 +1048,7 @@ if menu == "🏠 Dashboard":
             else:
                 st.info("No meals logged today")
         
-        with col2:
+        with col_r3b:
             st.markdown("**🏃 Recent Workouts**")
             if len(activity_logs) > 0:
                 recent_activities = activity_logs.head(5)
@@ -1443,236 +1625,6 @@ elif menu == "🏋️ Fitness Level Classifier":
     
     else:
         st.error("Gagal memuat model. Pastikan file dataset 'bodyPerformance.csv' tersedia di folder 'data/'.")
-
-elif menu == "📈 Progress":
-    st.markdown('<div class="main-header">📈 Progress Tracking</div>', unsafe_allow_html=True)
-    
-    if st.session_state.user is None:
-        st.markdown('''
-        <div class="warning-box">
-            <strong>⚠️ Profil Belum Lengkap!</strong><br>Silakan lengkapi profil Anda terlebih dahulu di menu 👤 Profile untuk mengaktifkan fitur analitik perkembangan.
-        </div>
-        ''', unsafe_allow_html=True)
-        st.stop()
-    user = st.session_state.user
-    
-    st.subheader("⚖️ Weight Progress")
-    
-    weight_history = get_weight_progress(user['user_id'])
-    
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        if len(weight_history) > 0:
-            fig = px.line(
-                weight_history, 
-                x='record_date', 
-                y='weight_kg',
-                title='Weight Over Time',
-                labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
-            )
-            fig.update_traces(line=dict(color='#FF5722', width=3))
-            fig.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-                margin=dict(l=20, r=20, t=50, b=20)
-            )
-            fig.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
-            fig.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
-            st.plotly_chart(fig, use_container_width=True)
-            
-            start_weight = weight_history.iloc[0]['weight_kg']
-            latest_weight = weight_history.iloc[-1]['weight_kg']
-            change = latest_weight - start_weight
-            
-            if change < 0:
-                st.success(f"✅ You've lost {abs(change):.1f} kg since starting!")
-            elif change > 0:
-                st.info(f"📈 You've gained {change:.1f} kg since starting")
-            else:
-                st.info("Weight has remained stable")
-    
-    with col2:
-        new_weight = st.number_input("Update weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']))
-        if st.button("📝 Record Weight"):
-            update_weight(user['user_id'], new_weight)
-            st.success("Weight recorded!")
-            st.rerun()
-    
-    st.subheader("🔥 Calorie Trend Analysis")
-    
-    food_logs = get_food_logs(user['user_id'], 30)
-    activity_logs = get_activity_logs(user['user_id'], 30)
-    
-    if len(food_logs) > 0 or len(activity_logs) > 0:
-        daily_summary = {}
-        for _, row in food_logs.iterrows():
-            date_str = row['log_date']
-            if date_str not in daily_summary:
-                daily_summary[date_str] = {'in': 0, 'out': 0}
-            daily_summary[date_str]['in'] += row['calories']
-        
-        for _, row in activity_logs.iterrows():
-            date_str = row['log_date']
-            if date_str not in daily_summary:
-                daily_summary[date_str] = {'in': 0, 'out': 0}
-            daily_summary[date_str]['out'] += row['calories_burned']
-        
-        trend_data = pd.DataFrame([
-            {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
-            for d, v in sorted(daily_summary.items())
-        ])
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
-                                 mode='lines+markers', line=dict(color='#FF5722', width=2.5)))
-        fig.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
-                                 mode='lines+markers', line=dict(color='#06B6D4', width=2.5)))
-        fig.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
-                                 mode='lines+markers', line=dict(color='#8B5CF6', width=2, dash='dash')))
-        fig.update_layout(
-            title='Daily Calorie Trends', 
-            height=400, 
-            hovermode='x unified',
-            template='plotly_dark',
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-            margin=dict(l=20, r=20, t=50, b=20)
-        )
-        fig.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
-        fig.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Log your meals and activities to see progress charts!")
-
-    # -------------------------------------------------------------------------
-    # 🔮 Weight Forecasting (Machine Learning — Linear Regression)
-    # -------------------------------------------------------------------------
-    st.subheader("🔮 Weight Forecasting (ML — Linear Regression)")
-
-    forecast_col1, forecast_col2 = st.columns([1, 3])
-
-    with forecast_col1:
-        forecast_days = st.selectbox(
-            "Forecast Range",
-            options=[7, 14, 30],
-            format_func=lambda x: f"{x} days",
-            index=2,
-            key="forecast_horizon",
-        )
-
-    # Panggil fungsi forecast_weight
-    result = forecast_weight(user['user_id'], days=forecast_days)
-
-    if result['enough_data']:
-        forecast_df = result['forecast']
-        hist_df = result['history'].copy()
-        coef = result['model_coef']
-        r2 = result['model_r2']
-
-        # --- Kartu metrik ---
-        m1, m2, m3 = st.columns(3)
-
-        with m1:
-            direction = (
-                "📉 Decreasing"
-                if coef < 0
-                else ("📈 Increasing" if coef > 0 else "➡️ Stable")
-            )
-            st.metric(
-                "Daily Trend",
-                f"{abs(coef):.3f} kg/day",
-                delta=direction
-            )
-
-        with m2:
-            st.metric("R² Score", f"{r2:.4f}")
-
-        with m3:
-            pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
-            st.metric(
-                f"Day {forecast_days} Prediction",
-                f"{pred_end:.1f} kg"
-            )
-
-        # --- Grafik gabungan: historis + prediksi ---
-        fig_fc = go.Figure()
-
-        # Garis historis
-        hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
-        fig_fc.add_trace(go.Scatter(
-            x=hist_df['record_date'],
-            y=hist_df['weight_kg'],
-            mode='lines+markers',
-            name='Historical Data',
-            line=dict(color='#4ECDC4', width=3),
-            marker=dict(size=7),
-        ))
-
-        # Titik penghubung (data terakhir → prediksi pertama)
-        bridge_dates = [
-            hist_df['record_date'].iloc[-1],
-            forecast_df['date'].iloc[0]
-        ]
-        bridge_weights = [
-            hist_df['weight_kg'].iloc[-1],
-            forecast_df['predicted_weight_kg'].iloc[0]
-        ]
-
-        fig_fc.add_trace(go.Scatter(
-            x=bridge_dates,
-            y=bridge_weights,
-            mode='lines',
-            line=dict(color='#FF6B6B', width=2, dash='dot'),
-            showlegend=False,
-        ))
-
-        # Garis prediksi
-        fig_fc.add_trace(go.Scatter(
-            x=forecast_df['date'],
-            y=forecast_df['predicted_weight_kg'],
-            mode='lines+markers',
-            name=f'Forecast ({forecast_days} Days)',
-            line=dict(color='#FF6B6B', width=3, dash='dot'),
-            marker=dict(size=6, symbol='diamond'),
-        ))
-
-        fig_fc.update_layout(
-            title=f'Weight History & Forecast ({forecast_days} Days Ahead)',
-            xaxis_title='Date',
-            yaxis_title='Weight (kg)',
-            height=450,
-            hovermode='x unified',
-            legend=dict(
-                orientation='h',
-                yanchor='bottom',
-                y=1.02,
-                xanchor='right',
-                x=1
-            ),
-        )
-
-        st.plotly_chart(fig_fc, use_container_width=True)
-
-        # --- Tabel data prediksi ---
-        with st.expander("📋 View Forecast Data Table"):
-            display_df = forecast_df.copy()
-            display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
-            display_df.columns = ['Date', 'Predicted Weight (kg)']
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-    else:
-        st.info(
-            "⚠️ Not enough weight records available (minimum 2 records required). "
-            "Please log your weight regularly to enable the forecasting feature."
-        )
 
 elif menu == "🤖 AI Chatbot":
     st.markdown('<div class="main-header">🤖 AI Fitness Coach</div>', unsafe_allow_html=True)
