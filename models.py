@@ -133,17 +133,31 @@ BODY_TARGET_PATH = 'models/body_target_encoder.pkl'
 BODY_GENDER_MAP_PATH = 'models/body_gender_map.pkl'
 BODY_FEATURE_ORDER_PATH = 'models/body_feature_order.pkl'
 
+BODY_CSV_PATH = 'data/body_performance.csv'
+
 def train_body_performance_model():
-    print("ðŸ”„ Training fitness classification model (reading from SQLite)...")
-    
-    # Cek apakah tabel body_performance ada
-    if not table_exists('body_performance'):
-        raise FileNotFoundError("âŒ Tabel 'body_performance' tidak ditemukan dalam database.")
-    
-    # Baca data dari SQLite
-    df = read_table_to_df('body_performance')
+    print("🔄 Training fitness classification model...")
+
+    # Coba dari database dulu, fallback ke CSV
+    df = None
+    if table_exists('body_performance'):
+        print("[INFO] Reading from database table 'body_performance'...")
+        df = read_table_to_df('body_performance')
+
     if df is None or df.empty:
-        raise ValueError("âŒ Data dari tabel 'body_performance' kosong.")
+        # Fallback: baca dari CSV
+        if os.path.exists(BODY_CSV_PATH):
+            print(f"[INFO] Database table not found. Reading from CSV: {BODY_CSV_PATH}")
+            df = pd.read_csv(BODY_CSV_PATH)
+        else:
+            raise FileNotFoundError(
+                f"❌ Tidak dapat menemukan data body_performance. "
+                f"Pastikan tabel 'body_performance' ada di database ATAU "
+                f"file '{BODY_CSV_PATH}' tersedia."
+            )
+
+    if df is None or df.empty:
+        raise ValueError("❌ Data body_performance kosong.")
     
     print(f"âœ… Dataset dimuat: {len(df)} baris")
     print(f"ðŸ“‹ Kolom asli di database: {df.columns.tolist()}")
