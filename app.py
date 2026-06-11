@@ -441,7 +441,20 @@ st.markdown("""
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }
- 
+    
+    /* ── Chat Bubble Styling ── */
+    [data-testid="stChatMessage"] {
+        background-color: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
+        border-radius: 16px !important;
+        padding: 1.2rem !important;
+        margin-bottom: 1rem !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+    }
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] > p:last-child {
+        margin-bottom: 0 !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1676,23 +1689,23 @@ elif menu == "🤖 AI Chatbot":
             
             new_greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
 
-                Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
 
-                {pesan_tujuan}
+{pesan_tujuan}
 
-                **Apa yang bisa aku bantu?**
-                • 🍎 Menganalisis makanan & menghitung kalori
-                • 🏋️ Menyusun rencana olahraga
-                • 📊 Memantau progres harian
-                • 💡 Memberi motivasi dan tips kesehatan
+**Apa yang bisa aku bantu?**
+• 🍎 Menganalisis makanan & menghitung kalori
+• 🏋️ Menyusun rencana olahraga
+• 📊 Memantau progres harian
+• 💡 Memberi motivasi dan tips kesehatan
 
-                **Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
-                - "How many calories should I eat today?"
-                - "Give me a quick home workout"
-                - "What's a healthy breakfast idea?"
-                - "Aku butuh motivasi!"
+**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+- "How many calories should I eat today?"
+- "Give me a quick home workout"
+- "What's a healthy breakfast idea?"
+- "Aku butuh motivasi!"
 
-                Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
             st.session_state.messages[0]['content'] = new_greeting
         
         st.session_state.profile_updated = False
@@ -1720,23 +1733,23 @@ elif menu == "🤖 AI Chatbot":
         
         greeting = f"""{sapaan} **{nama}**! Senang berkenalan denganmu 👋
 
-            Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
+Aku **FitBot**, asisten kebugaran dan nutrisi pribadimu.
 
-            {pesan_tujuan}
+{pesan_tujuan}
 
-            **Apa yang bisa aku bantu?**
-            • 🍎 Menganalisis makanan & menghitung kalori
-            • 🏋️ Menyusun rencana olahraga
-            • 📊 Memantau progres harian
-            • 💡 Memberi motivasi dan tips kesehatan
+**Apa yang bisa aku bantu?**
+• 🍎 Menganalisis makanan & menghitung kalori
+• 🏋️ Menyusun rencana olahraga
+• 📊 Memantau progres harian
+• 💡 Memberi motivasi dan tips kesehatan
 
-            **Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
-            - "How many calories should I eat today?"
-            - "Give me a quick home workout"
-            - "What's a healthy breakfast idea?"
-            - "Aku butuh motivasi!"
+**Coba tanyakan ini (dalam bahasa Inggris atau Indonesia):**
+- "How many calories should I eat today?"
+- "Give me a quick home workout"
+- "What's a healthy breakfast idea?"
+- "Aku butuh motivasi!"
 
-            Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
+Aku akan merespon dalam bahasa yang kamu gunakan. Yuk mulai dengan mengetik pertanyaanmu di bawah! 😊"""
         
         st.session_state.messages.append({"role": "assistant", "content": greeting})
         st.session_state.greeting_sent = True
