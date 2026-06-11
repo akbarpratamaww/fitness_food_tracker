@@ -1,4 +1,4 @@
-﻿# models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
+# models.py - Lengkap dengan Model 1 (Regresi) dan Model 2 (Klasifikasi)
 # Dataset dibaca dari SQLite, bukan CSV
 import pandas as pd
 import numpy as np
@@ -200,7 +200,7 @@ def train_body_performance_model():
     
     # XGBoost
     xgb_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42,
-                                  use_label_encoder=False, eval_metric='mlogloss')
+                                  eval_metric='mlogloss')
     xgb_model.fit(X_train, y_train)
     
     # SVM

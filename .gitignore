@@ -11,8 +11,8 @@ __pycache__/
 data/*.db
 data/*.sqlite
 
-# Model files
-models/*.pkl
+# Model files - exclude large calorie model only (body performance is committed)
+models/calorie_predictor.pkl
 
 # IDE
 .vscode/
