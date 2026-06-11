@@ -56,13 +56,12 @@ class FitnessChatbot:
             # Add current user message
             messages.append({"role": "user", "content": user_message})
 
-            # Define tools for database insertion
             tools = [
                 {
                     "type": "function",
                     "function": {
                         "name": "log_food",
-                        "description": "ONLY call this if the user EXPLICITLY states they ALREADY ATE or ARE EATING a specific food. DO NOT call this if they are just asking for food recommendations, nutrition facts, or recipes.",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a food they ate. DO NOT call this for recommendations, recipes, or without asking first.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -81,7 +80,7 @@ class FitnessChatbot:
                     "type": "function",
                     "function": {
                         "name": "log_activity",
-                        "description": "ONLY call this if the user EXPLICITLY states they COMPLETED or ARE DOING an exercise. DO NOT call this if they are just asking for workout advice or recommendations.",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a workout they did. DO NOT call this for recommendations, workout advice, or without asking first.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -185,12 +184,51 @@ class FitnessChatbot:
                     top_p=0.9
                 )
                 
-                return second_response.choices[0].message.content
+                final_content = second_response.choices[0].message.content or ""
+            else:
+                final_content = response_message.content or ""
 
-            return response_message.content
+            # Handle cases where model leaks tool calls into text
+            if "<function=" in final_content:
+                import re, json
+                from datetime import date
+                from database import add_food_log, add_activity_log
+                
+                matches = re.finditer(r'<function=([^>]+)>(.*?)</function>', final_content, flags=re.DOTALL)
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                
+                for match in matches:
+                    func_name = match.group(1)
+                    try:
+                        args = json.loads(match.group(2))
+                    except:
+                        continue
+                        
+                    if user_id:
+                        if func_name == "log_food":
+                            add_food_log(
+                                user_id=user_id, food_name=args.get("food_name", "Unknown Food"),
+                                calories=args.get("calories", 0), protein=args.get("protein", 0),
+                                carbs=args.get("carbs", 0), fat=args.get("fat", 0),
+                                meal_type=args.get("meal_type", "Snack"), log_date=date.today().isoformat()
+                            )
+                        elif func_name == "log_activity":
+                            add_activity_log(
+                                user_id=user_id, activity_type=args.get("activity_type", "Exercise"),
+                                duration_minutes=args.get("duration_minutes", 0), calories_burned=args.get("calories_burned", 0),
+                                intensity=args.get("intensity", "Medium"), log_date=date.today().isoformat()
+                            )
+                
+                # Clean the raw function tags from the content
+                final_content = re.sub(r'<function=[^>]+>.*?</function>', '', final_content, flags=re.DOTALL).strip()
+                if not final_content:
+                    return "✅ Data berhasil dicatat! Ada lagi yang bisa saya bantu hari ini?"
+            
+            return final_content
 
         except Exception as e:
-            return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
+            # Friendly error message without technical details
+            return "⚠️ Maaf, AI Coach sedang mengalami sedikit kendala sistem. Mohon tunggu sebentar dan coba tanyakan lagi ya."
 
     def _build_system_prompt(self):
         """Build a rich system prompt with user profile and coaching instructions."""
@@ -234,7 +272,7 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 6. **Include small motivational tips** when relevant.
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
 8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
-9. **Log data automatically (STRICT RULE):** If the user explicitly tells you they *already ate* something or *already did* an exercise, use the `log_food` or `log_activity` tools to save it. DO NOT use these tools if the user is merely asking for recommendations, recipes, or advice.
+9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
@@ -248,7 +286,9 @@ Provide practical, science-based advice on exercise, diet, weight loss, muscle g
 Keep responses concise (under 200 words) and actionable. Use emojis to be engaging.
 Respond in the same language as the user (Indonesian or English).
 
-CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features."""
+CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+
+DATABASE ACCESS: You have direct database access via the `log_food` and `log_activity` tools. Before calling any tool, you MUST always ask the user for text confirmation first. Only call the tool if they explicitly agree (e.g. reply 'Ya/Yes/Catat'). Do NOT call the tool on recommendations or without asking."""
 
     def _get_rule_based_response(self, user_message, context):
         """Enhanced fallback responses when API is not available."""

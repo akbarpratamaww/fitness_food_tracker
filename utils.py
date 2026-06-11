@@ -5,6 +5,23 @@ from datetime import date, timedelta
 # Import fungsi dari database.py
 from database import read_table_to_df, table_exists
 
+import hashlib
+import hmac
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY", "FitTrackAI_SecretKey_9832472")
+
+def sign_user_id(user_id):
+    """Generate a secure signature for remember-me user session."""
+    data = f"{user_id}:{SECRET_KEY}"
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+
+def verify_user_id(user_id, signature):
+    """Verify if the user_id signature is valid."""
+    if not user_id or not signature:
+        return False
+    expected = sign_user_id(user_id)
+    return hmac.compare_digest(expected, signature)
 # Activity MET values (Metabolic Equivalent of Task)
 # Calories burned per minute = MET * 3.5 * weight_kg / 200
 ACTIVITY_MET = {
@@ -157,14 +174,33 @@ def load_food_dataset():
         if table_exists('food_dataset'):
             df = read_table_to_df('food_dataset')
             if df is not None and not df.empty:
-                print(f"✅ Memuat {len(df)} data makanan dari database SQLite.")
+                print(f"Memuat {len(df)} data makanan dari database.")
+                # Normalisasi nama kolom karena database terkadang me-return kolom dengan huruf kecil (food, protein_g, dll)
+                col_map = {}
+                for c in df.columns:
+                    cl = c.lower().strip()
+                    # Bersihkan kemungkinan BOM (Byte Order Mark) atau whitespace
+                    cl = cl.replace('\ufeff', '').replace('\xef\xbb\xbf', '')
+                    if cl in ['food', 'food name', 'food_name']: col_map[c] = 'Food'
+                    elif cl in ['calories_per_100g', 'calories']: col_map[c] = 'Calories_per_100g'
+                    elif cl in ['protein_g', 'protein']: col_map[c] = 'Protein_g'
+                    elif cl in ['carbs_g', 'carbs']: col_map[c] = 'Carbs_g'
+                    elif cl in ['fat_g', 'fats', 'fat']: col_map[c] = 'Fat_g'
+                df = df.rename(columns=col_map)
+                
+                # Pastikan kolom-kolom wajib ada sebelum direturn
+                required_cols = ['Food', 'Calories_per_100g', 'Protein_g', 'Carbs_g', 'Fat_g']
+                for r_col in required_cols:
+                    if r_col not in df.columns:
+                        df[r_col] = 0.0 if r_col != 'Food' else 'Unknown Food'
+                
                 return df
             else:
-                print("⚠️ Tabel 'food_dataset' kosong, menggunakan dataset sampel.")
+                print("Tabel 'food_dataset' kosong, menggunakan dataset sampel.")
         else:
-            print("⚠️ Tabel 'food_dataset' tidak ditemukan dalam database, menggunakan dataset sampel.")
+            print("Tabel 'food_dataset' tidak ditemukan dalam database, menggunakan dataset sampel.")
     except Exception as e:
-        print(f"⚠️ Gagal membaca dari database: {e}. Menggunakan dataset sampel.")
+        print(f"Gagal membaca dari database: {e}. Menggunakan dataset sampel.")
     
     # Fallback: buat dataset sampel (sama seperti sebelumnya) dan simpan ke CSV (opsional)
     sample_foods = pd.DataFrame({
