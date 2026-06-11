@@ -516,18 +516,18 @@ controller = CookieController()
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
-# Recover session from cookie if available and user not explicitly logged out
-if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
+# Recover session from cookie — skip if user just logged out (query param survives browser reload)
+_just_logged_out = st.query_params.get('logged_out') == '1'
+if st.session_state.user_id is None and not _just_logged_out:
     try:
         token = controller.get('user_session')
-        if token:
+        if token and token.strip():
             parts = token.split(":")
             if len(parts) == 2:
                 uid, sig = parts[0], parts[1]
                 if verify_user_id(uid, sig):
                     st.session_state.user_id = int(uid)
-                    if st.query_params:
-                        st.query_params.clear()
+                    st.query_params.clear()
                     st.rerun()
     except Exception:
         pass
@@ -871,13 +871,13 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                controller.remove('user_session')
-                st.session_state.logged_out = True
-                st.session_state.user_id = None
-                st.query_params.clear()
+                # Overwrite cookie with empty value (more reliable than remove())
+                controller.set('user_session', '', max_age=0)
+                # Clear all session state
                 for key in list(st.session_state.keys()):
-                    if key != 'logged_out':
-                        del st.session_state[key]
+                    del st.session_state[key]
+                # Set query param as logout flag — survives browser reload unlike session_state
+                st.query_params['logged_out'] = '1'
                 st.rerun()
         
         # Quick terminology guide for laypeople
