@@ -929,6 +929,7 @@ if menu == "Dashboard":
                 st.session_state.logged_out = True   # synchronous guard for next rerun
                 st.session_state.user_id = None
                 st.query_params.clear()
+                time.sleep(0.8)  # give browser time to write cookies
                 st.rerun()
         
         # Quick terminology guide for laypeople
