@@ -8,6 +8,7 @@ import time
 # Import modules
 from database import *
 from utils import *
+from streamlit_cookies_controller import CookieController
 from models import predict_calories_burned, train_calorie_prediction_model
 from chatbot import FitnessChatbot
 from mining import run_apriori, get_sample_transactions
@@ -240,7 +241,13 @@ st.markdown("""
         background: transparent !important;
     }
     .main .block-container, [data-testid="stAppViewBlockContainer"] {
-        padding-top: 90px !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        border-radius: 28px !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+        padding: 2.5rem 3rem !important;
+        max-width: 1200px !important;
+        margin: 90px auto 30px auto !important;
     }
    /* div[data-testid="stToolbar"] {
         display: none !important;
@@ -452,11 +459,25 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     
-    div[data-testid="stForm"] {
-        border: none !important;
-        padding: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
+    div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
+        border-radius: 20px !important;
+        padding: 2rem !important;
+        margin-bottom: 2rem !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        overflow: visible !important;
+    }
+    
+    div[data-testid="stVerticalBlock"] {
+        overflow: visible !important;
+    }
+    
+    div[data-testid="stForm"]:hover, div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2) !important;
+        border-color: rgba(255, 87, 34, 0.3) !important;
+        transform: translateY(-2px) !important;
     }
     
     .wizard-nav {
@@ -509,22 +530,29 @@ st.markdown("""
 # Initialize database
 init_database()
 
-import extra_streamlit_components as stx
-import datetime
-
-# Create CookieManager without caching to avoid Streamlit 1.38+ widget cache warnings
-cookie_manager = stx.CookieManager(key="auth_cookie_manager")
+# Initialize Cookie Controller
+controller = CookieController()
 
 # Initialize session state
 if 'user_id' not in st.session_state:
-    # Try to read from cookie first
-    cookie_user_id = cookie_manager.get("user_id")
-    if cookie_user_id is not None:
-        st.session_state.user_id = int(cookie_user_id)
-        if st.query_params:
-            st.query_params.clear()
-    else:
-        st.session_state.user_id = None
+    st.session_state.user_id = None
+
+# Recover session from cookie if available and user not explicitly logged out
+if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
+    try:
+        token = controller.get('user_session')
+        if token:
+            parts = token.split(":")
+            if len(parts) == 2:
+                uid, sig = parts[0], parts[1]
+                if verify_user_id(uid, sig):
+                    st.session_state.user_id = int(uid)
+                    if st.query_params:
+                        st.query_params.clear()
+                    st.rerun()
+    except Exception:
+        pass
+
 if 'chatbot' not in st.session_state:
     st.session_state.chatbot = None
 if 'messages' not in st.session_state:
@@ -593,8 +621,22 @@ if st.session_state.user_id is None:
                 if not login_username or not login_password:
                     st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                 else:
-                    if not username_exists(login_username):
-                        st.markdown('<div class="warning-box">⚠️ Username tidak ditemukan. Silakan beralih ke tab <strong>📝 Register</strong> untuk membuat akun baru.</div>', unsafe_allow_html=True)
+                    user_row = authenticate_user(login_username, login_password)
+                    if user_row is not None:
+                        st.session_state.user_id = int(user_row['user_id'])
+                        st.session_state.user = user_row.to_dict()
+                        st.session_state.logged_out = False
+                        token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
+                        controller.set('user_session', token)
+                        if st.query_params:
+                            st.query_params.clear()
+                        st.session_state.active_menu = "Dashboard"
+                        st.session_state.chatbot = None
+                        st.session_state.messages = []
+                        st.session_state.greeting_sent = False
+                        st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                        time.sleep(0.8)
+                        st.rerun()
                     else:
                         user_row = authenticate_user(login_username, login_password)
                         if user_row is not None:
@@ -780,7 +822,9 @@ if st.session_state.user_id is None:
                             user_row = get_user(new_uid)
                             st.session_state.user_id = new_uid
                             st.session_state.user = user_row.to_dict()
-                            save_local_session(new_uid)
+                            st.session_state.logged_out = False
+                            token = f"{new_uid}:{sign_user_id(new_uid)}"
+                            controller.set('user_session', token)
                             if st.query_params:
                                 st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
@@ -863,10 +907,13 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                clear_local_session()
+                controller.remove('user_session')
+                st.session_state.logged_out = True
+                st.session_state.user_id = None
                 st.query_params.clear()
                 for key in list(st.session_state.keys()):
-                    del st.session_state[key]
+                    if key != 'logged_out':
+                        del st.session_state[key]
                 st.rerun()
         
         # Quick terminology guide for laypeople
@@ -880,81 +927,77 @@ if menu == "Dashboard":
             *   **Surplus Kalori (Net Balance Positif):** Makan lebih banyak dari yang kamu bakar. Berguna untuk menaikkan berat badan atau membangun otot.
             """)
         
-        # Today's summary
-        col1, col2, col3, col4 = st.columns(4)
-        
-        calories_in, calories_out = get_today_summary(user['user_id'])
-        net_calories = calories_in - calories_out
-        target = user['daily_target_calories']
-        remaining = target - net_calories
-        
-        with col1:
-            st.metric(
-                "🔥 Calories In", 
-                f"{calories_in:.0f} kcal", 
-                delta=f"vs {target:.0f} target",
-                help="Total kalori dari makanan dan minuman yang kamu konsumsi hari ini."
-            )
-        with col2:
-            st.metric(
-                "⚡ Calories Out", 
-                f"{calories_out:.0f} kcal",
-                help="Total kalori yang dibakar hari ini melalui metabolisme tubuh (TDEE) ditambah aktivitas olahraga."
-            )
-        with col3:
-            st.metric(
-                "📊 Net Balance", 
-                f"{net_calories:.0f} kcal",
-                delta=f"{remaining:.0f} remaining",
-                help="Kalori Masuk dikurangi Kalori Keluar. Nilai negatif (-) berarti kamu berada dalam kondisi defisit kalori (bagus untuk menurunkan berat badan)."
-            )
-        with col4:
-            st.metric(
-                "💪 BMI", 
-                f"{calculate_bmi(user['weight_kg'], user['height_cm']):.1f}",
-                delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])),
-                help="Body Mass Index (Indeks Massa Tubuh) adalah pengukuran lemak tubuh berdasarkan tinggi dan berat badan untuk menentukan kategori berat badan ideal."
-            )
+        # Today's summary & Alerts container card
+        with st.container(border=True):
+            st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
+            col1, col2, col3, col4 = st.columns(4)
             
-        # Excessive / Deficient Calorie Warning
-        if remaining < -200:
-            st.warning("⚠️ **Warning:** Your calorie intake today has exceeded the target! Consider adding some physical activity.")
-        elif net_calories < -1000:
-            st.warning("⚠️ **Warning:** Your calorie deficit is very extreme today! Be careful, eating too little can slow down your metabolism. Make sure you eat enough.")
-        
-        # Daily Calorie Warnings/Alerts (Dynamic based on Net Calories)
-        if net_calories > target:
-            exceeded_by = net_calories - target
-            st.markdown(f'''
-            <div class="danger-box">
-                <strong>⚠️ Batas Kalori Bersih Terlampaui!</strong><br>
-                Kalori bersih Anda hari ini ({net_calories:.0f} kcal) telah melebihi target harian Anda ({target:.0f} kcal) sebanyak <strong>{exceeded_by:.0f} kcal</strong>. 
-                Pertimbangkan untuk berolahraga lebih banyak atau mengurangi porsi makan.
-            </div>
-            ''', unsafe_allow_html=True)
-        elif net_calories <= 0 and calories_in > 0:
-            st.markdown(f'''
-            <div class="info-box">
-                <strong>⚡ Kalori Terbakar Lebih Banyak!</strong><br>
-                Hebat! Total kalori yang Anda bakar hari ini lebih besar daripada kalori masuk (Net Balance: <strong>{net_calories:.0f} kcal</strong>). Ini sangat baik untuk pembakaran lemak!
-            </div>
-            ''', unsafe_allow_html=True)
-        elif net_calories > 0 and net_calories < (target * 0.7):
-            remaining_percentage = ((target - net_calories) / target) * 100
-            st.markdown(f'''
-            <div class="warning-box">
-                <strong>⚠️ Net Kalori Masih Kurang!</strong><br>
-                Net kalori Anda saat ini adalah {net_calories:.0f} kcal, masih kurang <strong>{target - net_calories:.0f} kcal</strong> ({remaining_percentage:.0f}% lagi) untuk memenuhi target harian Anda ({target:.0f} kcal). 
-                Pastikan Anda makan dengan cukup agar tubuh memiliki energi yang cukup.
-            </div>
-            ''', unsafe_allow_html=True)
-        elif net_calories >= (target * 0.95) and net_calories <= target:
-            st.markdown(f'''
-            <div class="success-box">
-                <strong>✅ Target Net Kalori Hampir Tercapai!</strong><br>
-                Kerja bagus! Net kalori Anda ({net_calories:.0f} kcal) sudah sangat mendekati target harian Anda ({target:.0f} kcal). Pertahankan!
-            </div>
-            ''', unsafe_allow_html=True)
+            calories_in, calories_out = get_today_summary(user['user_id'])
+            net_calories = calories_in - calories_out
+            target = user['daily_target_calories']
+            remaining = target - net_calories
+            
+            with col1:
+                st.metric(
+                    "🔥 Calories In", 
+                    f"{calories_in:.0f} kcal", 
+                    delta=f"vs {target:.0f} target",
+                    help="Total kalori dari makanan dan minuman yang kamu konsumsi hari ini."
+                )
+            with col2:
+                st.metric(
+                    "⚡ Calories Out", 
+                    f"{calories_out:.0f} kcal",
+                    help="Total kalori yang dibakar hari ini melalui metabolisme tubuh (TDEE) ditambah aktivitas olahraga."
+                )
+            with col3:
+                st.metric(
+                    "📊 Net Balance", 
+                    f"{net_calories:.0f} kcal",
+                    delta=f"{remaining:.0f} remaining",
+                    help="Kalori Masuk dikurangi Kalori Keluar. Nilai negatif (-) berarti kamu berada dalam kondisi defisit kalori (bagus untuk menurunkan berat badan)."
+                )
+            with col4:
+                st.metric(
+                    "💪 BMI", 
+                    f"{calculate_bmi(user['weight_kg'], user['height_cm']):.1f}",
+                    delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])),
+                    help="Body Mass Index (Indeks Massa Tubuh) adalah pengukuran lemak tubuh berdasarkan tinggi dan berat badan untuk menentukan kategori berat badan ideal."
+                )
+            
+            # Daily Calorie Warnings/Alerts (Dynamic based on Net Calories)
+            if net_calories > target:
+                exceeded_by = net_calories - target
+                st.markdown(f'''
+                <div class="danger-box">
+                    <strong>⚠️ Batas Kalori Bersih Terlampaui!</strong><br>
+                    Kalori bersih Anda hari ini ({net_calories:.0f} kcal) telah melebihi target harian Anda ({target:.0f} kcal) sebanyak <strong>{exceeded_by:.0f} kcal</strong>. 
+                    Pertimbangkan untuk berolahraga lebih banyak atau mengurangi porsi makan.
+                </div>
+                ''', unsafe_allow_html=True)
+            elif net_calories <= 0 and calories_in > 0:
+                st.markdown(f'''
+                <div class="info-box">
+                    <strong>⚡ Kalori Terbakar Lebih Banyak!</strong><br>
+                    Hebat! Total kalori yang Anda bakar hari ini lebih besar daripada kalori masuk (Net Balance: <strong>{net_calories:.0f} kcal</strong>). Ini sangat baik untuk pembakaran lemak!
+                </div>
+                ''', unsafe_allow_html=True)
+            elif net_calories > 0 and net_calories < (target * 0.7):
+                remaining_percentage = ((target - net_calories) / target) * 100
+                st.markdown(f'''
+                <div class="warning-box">
+                    <strong>⚠️ Net Kalori Masih Kurang!</strong><br>
+                    Net kalori Anda saat ini adalah {net_calories:.0f} kcal, masih kurang <strong>{target - net_calories:.0f} kcal</strong> ({remaining_percentage:.0f}% lagi) untuk memenuhi target harian Anda ({target:.0f} kcal). 
+                    Pastikan Anda makan dengan cukup agar tubuh memiliki energi yang cukup.
+                </div>
+                ''', unsafe_allow_html=True)
+            elif net_calories >= (target * 0.95) and net_calories <= target:
+                st.markdown(f'''
+                <div class="success-box">
+                    <strong>✅ Target Net Kalori Hampir Tercapai!</strong><br>
+                    Kerja bagus! Net kalori Anda ({net_calories:.0f} kcal) sudah sangat mendekati target harian Anda ({target:.0f} kcal). Pertahankan!
+                </div>
+                ''', unsafe_allow_html=True)
 
         # Button to reset daily calories
         col_btn1, col_btn2 = st.columns([5, 1.2])
@@ -966,242 +1009,243 @@ if menu == "Dashboard":
                 st.rerun()
 
         # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
-        st.markdown("---")
-        col_r1a, col_r1b = st.columns(2)
-        
-        with col_r1a:
-            st.subheader("📊 Weekly Calorie Summary")
-            food_logs = get_food_logs(user['user_id'], 7)
-            activity_logs = get_activity_logs(user['user_id'], 7)
+        with st.container(border=True):
+            st.markdown("### 📈 Grafik Analisis Kalori (7 Hari & 30 Hari)")
+            col_r1a, col_r1b = st.columns(2)
             
-            dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
-            daily_in = []
-            daily_out = []
-            
-            for d in dates:
-                day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
-                day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
-                daily_in.append(day_in)
-                daily_out.append(day_out)
-            
-            fig = go.Figure()
-            fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF5722'))
-            fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#06B6D4'))
-            fig.update_layout(
-                barmode='group', 
-                title='Daily Calorie Comparison (7 Days)', 
-                height=350,
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-                margin=dict(l=20, r=20, t=50, b=20)
-            )
-            fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
-            fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with col_r1b:
-            st.subheader("🔥 Calorie Trend Analysis")
-            food_logs_30 = get_food_logs(user['user_id'], 30)
-            activity_logs_30 = get_activity_logs(user['user_id'], 30)
-            
-            if len(food_logs_30) > 0 or len(activity_logs_30) > 0:
-                daily_summary = {}
-                for _, row in food_logs_30.iterrows():
-                    date_str = row['log_date']
-                    if date_str not in daily_summary:
-                        daily_summary[date_str] = {'in': 0, 'out': 0}
-                    daily_summary[date_str]['in'] += row['calories']
+            with col_r1a:
+                st.subheader("📊 Weekly Calorie Summary")
+                food_logs = get_food_logs(user['user_id'], 7)
+                activity_logs = get_activity_logs(user['user_id'], 7)
                 
-                for _, row in activity_logs_30.iterrows():
-                    date_str = row['log_date']
-                    if date_str not in daily_summary:
-                        daily_summary[date_str] = {'in': 0, 'out': 0}
-                    daily_summary[date_str]['out'] += row['calories_burned']
+                dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+                daily_in = []
+                daily_out = []
                 
-                trend_data = pd.DataFrame([
-                    {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
-                    for d, v in sorted(daily_summary.items())
-                ])
+                for d in dates:
+                    day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
+                    day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
+                    daily_in.append(day_in)
+                    daily_out.append(day_out)
                 
-                fig_trend = go.Figure()
-                fig_trend.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
-                                         mode='lines+markers', line=dict(color='#FF5722', width=2.5)))
-                fig_trend.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
-                                         mode='lines+markers', line=dict(color='#06B6D4', width=2.5)))
-                fig_trend.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
-                                         mode='lines+markers', line=dict(color='#8B5CF6', width=2, dash='dash')))
-                fig_trend.update_layout(
-                    title='Daily Calorie Trends (30 Days)', 
-                    height=350, 
-                    hovermode='x unified',
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF5722'))
+                fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#06B6D4'))
+                fig.update_layout(
+                    barmode='group', 
+                    title='Daily Calorie Comparison (7 Days)', 
+                    height=350,
                     template='plotly_dark',
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
                     margin=dict(l=20, r=20, t=50, b=20)
                 )
-                fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
-                fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
-                st.plotly_chart(fig_trend, use_container_width=True)
-            else:
-                st.info("Log your meals and activities to see 30-day calorie trend charts!")
+                fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
+                fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
+                st.plotly_chart(fig, use_container_width=True)
+                
+            with col_r1b:
+                st.subheader("🔥 Calorie Trend Analysis")
+                food_logs_30 = get_food_logs(user['user_id'], 30)
+                activity_logs_30 = get_activity_logs(user['user_id'], 30)
+                
+                if len(food_logs_30) > 0 or len(activity_logs_30) > 0:
+                    daily_summary = {}
+                    for _, row in food_logs_30.iterrows():
+                        date_str = row['log_date']
+                        if date_str not in daily_summary:
+                            daily_summary[date_str] = {'in': 0, 'out': 0}
+                        daily_summary[date_str]['in'] += row['calories']
+                    
+                    for _, row in activity_logs_30.iterrows():
+                        date_str = row['log_date']
+                        if date_str not in daily_summary:
+                            daily_summary[date_str] = {'in': 0, 'out': 0}
+                        daily_summary[date_str]['out'] += row['calories_burned']
+                    
+                    trend_data = pd.DataFrame([
+                        {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
+                        for d, v in sorted(daily_summary.items())
+                    ])
+                    
+                    fig_trend = go.Figure()
+                    fig_trend.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
+                                             mode='lines+markers', line=dict(color='#FF5722', width=2.5)))
+                    fig_trend.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
+                                             mode='lines+markers', line=dict(color='#06B6D4', width=2.5)))
+                    fig_trend.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
+                                             mode='lines+markers', line=dict(color='#8B5CF6', width=2, dash='dash')))
+                    fig_trend.update_layout(
+                        title='Daily Calorie Trends (30 Days)', 
+                        height=350, 
+                        hovermode='x unified',
+                        template='plotly_dark',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                        margin=dict(l=20, r=20, t=50, b=20)
+                    )
+                    fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
+                    fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                    st.plotly_chart(fig_trend, use_container_width=True)
+                else:
+                    st.info("Log your meals and activities to see 30-day calorie trend charts!")
         
-        # ==================== ROW 2: WEIGHT PROGRESS ====================
-        st.markdown("---")
-        st.subheader("⚖️ Weight Progress")
-        weight_history = get_weight_progress(user['user_id'])
-        if len(weight_history) > 0:
-            weight_history['record_date'] = pd.to_datetime(weight_history['record_date']).dt.strftime('%Y-%m-%d')
-        
-        # Sub-columns inside weight progress to fit Update Weight form neatly
-        col_inner1, col_inner2 = st.columns([2, 1])
-        with col_inner1:
+        # ==================== ROW 2: WEIGHT PROGRESS & FORECASTING ====================
+        with st.container(border=True):
+            st.markdown("### ⚖️ Progress & Prediksi Berat Badan")
+            weight_history = get_weight_progress(user['user_id'])
             if len(weight_history) > 0:
-                fig_w = px.line(
-                    weight_history, 
-                    x='record_date', 
-                    y='weight_kg',
-                    title='Weight Over Time',
-                    labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
+                weight_history['record_date'] = pd.to_datetime(weight_history['record_date']).dt.strftime('%Y-%m-%d')
+            
+            # Sub-columns inside weight progress to fit Update Weight form neatly
+            col_inner1, col_inner2 = st.columns([2, 1])
+            with col_inner1:
+                if len(weight_history) > 0:
+                    fig_w = px.line(
+                        weight_history, 
+                        x='record_date', 
+                        y='weight_kg',
+                        title='Weight Over Time',
+                        labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
+                    )
+                    fig_w.update_traces(line=dict(color='#FF5722', width=3))
+                    fig_w.update_layout(
+                        template='plotly_dark',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                        margin=dict(l=20, r=20, t=40, b=20),
+                        height=280
+                    )
+                    fig_w.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
+                    fig_w.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                    st.plotly_chart(fig_w, use_container_width=True)
+                    
+                    start_weight = weight_history.iloc[0]['weight_kg']
+                    latest_weight = weight_history.iloc[-1]['weight_kg']
+                    change = latest_weight - start_weight
+                    
+                    if change < 0:
+                        st.success(f"✅ Lost {abs(change):.1f} kg since start!")
+                    elif change > 0:
+                        st.info(f"📈 Gained {change:.1f} kg since start")
+                    else:
+                        st.info("Weight is stable")
+                else:
+                    st.info("No weight history found.")
+                    
+            with col_inner2:
+                st.markdown("**Update Weight**")
+                new_weight = st.number_input("Weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']), key="dash_update_weight_input")
+                if st.button("Record Weight", key="dash_record_weight_btn"):
+                    update_weight(user['user_id'], new_weight)
+                    st.success("Recorded!")
+                    st.rerun()
+            
+            # ==================== ROW 2.5: WEIGHT FORECASTING ====================
+            st.markdown("---")
+            st.markdown("#### 🔮 Weight Forecasting (ML)")
+            forecast_col1, forecast_col2 = st.columns([1, 2])
+            with forecast_col1:
+                forecast_days = st.selectbox(
+                    "Forecast Range",
+                    options=[7, 14, 30],
+                    format_func=lambda x: f"{x} days",
+                    index=2,
+                    key="dash_forecast_horizon",
                 )
-                fig_w.update_traces(line=dict(color='#FF5722', width=3))
-                fig_w.update_layout(
+            
+            result_fc = forecast_weight(user['user_id'], days=forecast_days)
+            if result_fc['enough_data']:
+                forecast_df = result_fc['forecast']
+                hist_df = result_fc['history'].copy()
+                coef = result_fc['model_coef']
+                r2 = result_fc['model_r2']
+                
+                # Forecasting Metrics
+                fm1, fm2, fm3 = st.columns(3)
+                with fm1:
+                    direction = "📉 Down" if coef < 0 else ("📈 Up" if coef > 0 else "➡️ Stable")
+                    st.metric("Trend", f"{abs(coef):.3f} kg/d", delta=direction)
+                with fm2:
+                    st.metric("R² Score", f"{r2:.2f}")
+                with fm3:
+                    pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
+                    st.metric("Forecast", f"{pred_end:.1f} kg")
+                
+                fig_fc = go.Figure()
+                hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
+                fig_fc.add_trace(go.Scatter(
+                    x=hist_df['record_date'],
+                    y=hist_df['weight_kg'],
+                    mode='lines+markers',
+                    name='History',
+                    line=dict(color='#4ECDC4', width=2.5),
+                    marker=dict(size=6),
+                ))
+                bridge_dates = [
+                    hist_df['record_date'].iloc[-1],
+                    forecast_df['date'].iloc[0]
+                ]
+                bridge_weights = [
+                    hist_df['weight_kg'].iloc[-1],
+                    forecast_df['predicted_weight_kg'].iloc[0]
+                ]
+                fig_fc.add_trace(go.Scatter(
+                    x=bridge_dates,
+                    y=bridge_weights,
+                    mode='lines',
+                    line=dict(color='#FF6B6B', width=1.5, dash='dot'),
+                    showlegend=False,
+                ))
+                fig_fc.add_trace(go.Scatter(
+                    x=forecast_df['date'],
+                    y=forecast_df['predicted_weight_kg'],
+                    mode='lines+markers',
+                    name=f'Forecast',
+                    line=dict(color='#FF6B6B', width=2.5, dash='dot'),
+                    marker=dict(size=5, symbol='diamond'),
+                ))
+                fig_fc.update_layout(
                     template='plotly_dark',
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-                    margin=dict(l=20, r=20, t=40, b=20),
-                    height=280
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    height=200,
+                    hovermode='x unified',
+                    showlegend=False
                 )
-                fig_w.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
-                fig_w.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
-                st.plotly_chart(fig_w, use_container_width=True)
-                
-                start_weight = weight_history.iloc[0]['weight_kg']
-                latest_weight = weight_history.iloc[-1]['weight_kg']
-                change = latest_weight - start_weight
-                
-                if change < 0:
-                    st.success(f"✅ Lost {abs(change):.1f} kg since start!")
-                elif change > 0:
-                    st.info(f"📈 Gained {change:.1f} kg since start")
-                else:
-                    st.info("Weight is stable")
+                st.plotly_chart(fig_fc, use_container_width=True)
             else:
-                st.info("No weight history found.")
-                
-        with col_inner2:
-            st.markdown("**Update Weight**")
-            new_weight = st.number_input("Weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']), key="dash_update_weight_input")
-            if st.button("Record Weight", key="dash_record_weight_btn"):
-                update_weight(user['user_id'], new_weight)
-                st.success("Recorded!")
-                st.rerun()
-        
-        # ==================== ROW 2.5: WEIGHT FORECASTING ====================
-        st.markdown("---")
-        st.subheader("🔮 Weight Forecasting (ML)")
-        forecast_col1, forecast_col2 = st.columns([1, 2])
-        with forecast_col1:
-            forecast_days = st.selectbox(
-                "Forecast Range",
-                options=[7, 14, 30],
-                format_func=lambda x: f"{x} days",
-                index=2,
-                key="dash_forecast_horizon",
-            )
-        
-        result_fc = forecast_weight(user['user_id'], days=forecast_days)
-        if result_fc['enough_data']:
-            forecast_df = result_fc['forecast']
-            hist_df = result_fc['history'].copy()
-            coef = result_fc['model_coef']
-            r2 = result_fc['model_r2']
-            
-            # Forecasting Metrics
-            fm1, fm2, fm3 = st.columns(3)
-            with fm1:
-                direction = "📉 Down" if coef < 0 else ("📈 Up" if coef > 0 else "➡️ Stable")
-                st.metric("Trend", f"{abs(coef):.3f} kg/d", delta=direction)
-            with fm2:
-                st.metric("R² Score", f"{r2:.2f}")
-            with fm3:
-                pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
-                st.metric("Forecast", f"{pred_end:.1f} kg")
-            
-            fig_fc = go.Figure()
-            hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
-            fig_fc.add_trace(go.Scatter(
-                x=hist_df['record_date'],
-                y=hist_df['weight_kg'],
-                mode='lines+markers',
-                name='History',
-                line=dict(color='#4ECDC4', width=2.5),
-                marker=dict(size=6),
-            ))
-            bridge_dates = [
-                hist_df['record_date'].iloc[-1],
-                forecast_df['date'].iloc[0]
-            ]
-            bridge_weights = [
-                hist_df['weight_kg'].iloc[-1],
-                forecast_df['predicted_weight_kg'].iloc[0]
-            ]
-            fig_fc.add_trace(go.Scatter(
-                x=bridge_dates,
-                y=bridge_weights,
-                mode='lines',
-                line=dict(color='#FF6B6B', width=1.5, dash='dot'),
-                showlegend=False,
-            ))
-            fig_fc.add_trace(go.Scatter(
-                x=forecast_df['date'],
-                y=forecast_df['predicted_weight_kg'],
-                mode='lines+markers',
-                name=f'Forecast',
-                line=dict(color='#FF6B6B', width=2.5, dash='dot'),
-                marker=dict(size=5, symbol='diamond'),
-            ))
-            fig_fc.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
-                margin=dict(l=10, r=10, t=10, b=10),
-                height=200,
-                hovermode='x unified',
-                showlegend=False
-            )
-            st.plotly_chart(fig_fc, use_container_width=True)
-        else:
-            st.info(
-                "⚠️ Minimum 2 weight logs required to predict trend."
-            )
+                st.info(
+                    "⚠️ Minimum 2 weight logs required to predict trend."
+                )
                 
         # ==================== ROW 3: RECENT ACTIVITIES ====================
-        st.markdown("---")
-        st.subheader("📋 Recent Activities")
-        col_r3a, col_r3b = st.columns(2)
-        
-        with col_r3a:
-            st.markdown("**🍎 Recent Meals**")
-            if len(food_logs) > 0:
-                recent_meals = food_logs.head(5)
-                for _, meal in recent_meals.iterrows():
-                    st.markdown(f"- {meal['food_name']}: {meal['calories']:.0f} kcal")
-            else:
-                st.info("No meals logged today")
-        
-        with col_r3b:
-            st.markdown("**🏃 Recent Workouts**")
-            if len(activity_logs) > 0:
-                recent_activities = activity_logs.head(5)
-                for _, activity in recent_activities.iterrows():
-                    st.markdown(f"- {activity['activity_type']}: {activity['duration_minutes']:.0f} min, {activity['calories_burned']:.0f} kcal")
-            else:
-                st.info("No activities logged today")
+        with st.container(border=True):
+            st.markdown("### 📋 Riwayat Aktivitas & Makanan Hari Ini")
+            col_r3a, col_r3b = st.columns(2)
+            
+            with col_r3a:
+                st.markdown("**🍎 Recent Meals**")
+                if len(food_logs) > 0:
+                    recent_meals = food_logs.head(5)
+                    for _, meal in recent_meals.iterrows():
+                        st.markdown(f"- {meal['food_name']}: {meal['calories']:.0f} kcal")
+                else:
+                    st.info("No meals logged today")
+            
+            with col_r3b:
+                st.markdown("**🏃 Recent Workouts**")
+                if len(activity_logs) > 0:
+                    recent_activities = activity_logs.head(5)
+                    for _, activity in recent_activities.iterrows():
+                        st.markdown(f"- {activity['activity_type']}: {activity['duration_minutes']:.0f} min, {activity['calories_burned']:.0f} kcal")
+                else:
+                    st.info("No activities logged today")
 
 elif menu == "Profile":
     st.markdown('<div class="main-header">Profile Setup</div>', unsafe_allow_html=True)
@@ -1335,84 +1379,85 @@ elif menu == "Food Log":
     tab1, tab2, tab3, tab4 = st.tabs(["📝 Log Food", "🍽️ Meal Suggestions", "📋 Food History", "🛒 Food Association Rules"])
     
     with tab1:
-        st.subheader("Add Food Entry")
-        
-        # Macronutrients & Calorie explanation glossary
-        with st.expander("📚 Mengenal Kalori & Makronutrisi (Karbohidrat, Protein, Lemak)"):
-            st.markdown("""
-            Saat mencatat makanan, penting untuk memahami nutrisi yang masuk ke tubuhmu:
-            *   **Kalori (kcal):** Satuan energi yang didapat dari makanan. Untuk turun berat badan, konsumsi kalori harus lebih kecil dari pembakaran (TDEE).
-            *   **Protein:** Makronutrisi penting untuk membangun dan memperbaiki jaringan otot. Sangat direkomendasikan saat diet/olahraga (1g protein = 4 kalori).
-            *   **Karbohidrat (Carbs):** Sumber energi utama tubuh untuk beraktivitas dan olahraga berat (1g karbohidrat = 4 kalori).
-            *   **Lemak (Fat):** Penting untuk kesehatan hormon, sendi, dan penyerapan vitamin (1g lemak = 9 kalori).
-            """)
-        
-        # Load and sort dataset alphabetically for better browsing
-        food_dataset = load_food_dataset().sort_values('Food').reset_index(drop=True)
-        
-        search_query = st.text_input("🔍 Cari Nama Makanan...", placeholder="Ketik kata kunci untuk menyaring makanan (contoh: Apple, Rice, Chicken)...")
-        
-        # Filter matches (flexible multi-word matching)
-        if search_query.strip():
-            keywords = search_query.lower().split()
-            mask = pd.Series(True, index=food_dataset.index)
-            for kw in keywords:
-                mask = mask & food_dataset['Food'].str.lower().str.contains(kw, na=False)
-            matches = food_dataset[mask]
-        else:
-            matches = food_dataset
+        with st.container(border=True):
+            st.subheader("Add Food Entry")
             
-        if not matches.empty:
-            # Format options list: "Food Name (Calories kcal/100g)"
-            options = []
-            for _, row in matches.iterrows():
-                options.append(f"{row['Food']} ({row['Calories_per_100g']:.1f} kcal/100g)")
+            # Macronutrients & Calorie explanation glossary
+            with st.expander("📚 Mengenal Kalori & Makronutrisi (Karbohidrat, Protein, Lemak)"):
+                st.markdown("""
+                Saat mencatat makanan, penting untuk memahami nutrisi yang masuk ke tubuhmu:
+                *   **Kalori (kcal):** Satuan energi yang didapat dari makanan. Untuk turun berat badan, konsumsi kalori harus lebih kecil dari pembakaran (TDEE).
+                *   **Protein:** Makronutrisi penting untuk membangun dan memperbaiki jaringan otot. Sangat direkomendasikan saat diet/olahraga (1g protein = 4 kalori).
+                *   **Karbohidrat (Carbs):** Sumber energi utama tubuh untuk beraktivitas dan olahraga berat (1g karbohidrat = 4 kalori).
+                *   **Lemak (Fat):** Penting untuk kesehatan hormon, sendi, dan penyerapan vitamin (1g lemak = 9 kalori).
+                """)
             
-            selected_opt = st.selectbox("Pilih Makanan yang Cocok", options)
-            selected_idx = options.index(selected_opt)
-            chosen_food = matches.iloc[selected_idx]
+            # Load and sort dataset alphabetically for better browsing
+            food_dataset = load_food_dataset().sort_values('Food').reset_index(drop=True)
             
-            col_portion, col_meal = st.columns(2)
-            with col_portion:
-                portion_g = st.number_input("Porsi (Gram)", min_value=1.0, max_value=2000.0, value=100.0, step=10.0)
-            with col_meal:
-                meal_type = st.selectbox("Meal Type", MEAL_TYPES, key="meal_db")
+            search_query = st.text_input("🔍 Cari Nama Makanan...", placeholder="Ketik kata kunci untuk menyaring makanan (contoh: Apple, Rice, Chicken)...")
+            
+            # Filter matches (flexible multi-word matching)
+            if search_query.strip():
+                keywords = search_query.lower().split()
+                mask = pd.Series(True, index=food_dataset.index)
+                for kw in keywords:
+                    mask = mask & food_dataset['Food'].str.lower().str.contains(kw, na=False)
+                matches = food_dataset[mask]
+            else:
+                matches = food_dataset
                 
-            # Calculate estimated calories and macros based on portion
-            factor = portion_g / 100.0
-            est_cal = chosen_food['Calories_per_100g'] * factor
-            est_protein = chosen_food['Protein_g'] * factor
-            est_carbs = chosen_food['Carbs_g'] * factor
-            est_fat = chosen_food['Fat_g'] * factor
-            
-            # Show estimation
-            st.info(f"Estimasi Nutrisi Porsi: **{est_cal:.0f} kcal** | Protein: {est_protein:.1f}g | Karbohidrat: {est_carbs:.1f}g | Lemak: {est_fat:.1f}g")
-            
-            if st.button("Catat Makanan", use_container_width=True):
-                try:
-                    add_food_log(
-                        user['user_id'],
-                        chosen_food['Food'],
-                        est_cal,
-                        est_protein,
-                        est_carbs,
-                        est_fat,
-                        meal_type,
-                        date.today().isoformat()
-                    )
-                    st.success(f"✅ {chosen_food['Food']} ({est_cal:.0f} kcal) berhasil dicatat!")
-                    st.balloons()
-                    time.sleep(1)
+            if not matches.empty:
+                # Format options list: "Food Name (Calories kcal/100g)"
+                options = []
+                for _, row in matches.iterrows():
+                    options.append(f"{row['Food']} ({row['Calories_per_100g']:.1f} kcal/100g)")
+                
+                selected_opt = st.selectbox("Pilih Makanan yang Cocok", options)
+                selected_idx = options.index(selected_opt)
+                chosen_food = matches.iloc[selected_idx]
+                
+                col_portion, col_meal = st.columns(2)
+                with col_portion:
+                    portion_g = st.number_input("Porsi (Gram)", min_value=1.0, max_value=2000.0, value=100.0, step=10.0)
+                with col_meal:
+                    meal_type = st.selectbox("Meal Type", MEAL_TYPES, key="meal_db")
+                    
+                # Calculate estimated calories and macros based on portion
+                factor = portion_g / 100.0
+                est_cal = chosen_food['Calories_per_100g'] * factor
+                est_protein = chosen_food['Protein_g'] * factor
+                est_carbs = chosen_food['Carbs_g'] * factor
+                est_fat = chosen_food['Fat_g'] * factor
+                
+                # Show estimation
+                st.info(f"Estimasi Nutrisi Porsi: **{est_cal:.0f} kcal** | Protein: {est_protein:.1f}g | Karbohidrat: {est_carbs:.1f}g | Lemak: {est_fat:.1f}g")
+                
+                if st.button("Catat Makanan", use_container_width=True):
+                    try:
+                        add_food_log(
+                            user['user_id'],
+                            chosen_food['Food'],
+                            est_cal,
+                            est_protein,
+                            est_carbs,
+                            est_fat,
+                            meal_type,
+                            date.today().isoformat()
+                        )
+                        st.success(f"✅ {chosen_food['Food']} ({est_cal:.0f} kcal) berhasil dicatat!")
+                        st.balloons()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Gagal mencatat: {str(e)}")
+            else:
+                st.warning("⚠️ Tidak ada makanan yang cocok di database.")
+                if st.button("Daftarkan Makanan Custom Baru", use_container_width=True):
+                    st.session_state.expander_expanded = True
+                    st.session_state.scroll_to_custom = True
+                    st.session_state.prefilled_custom_name = search_query.strip().title()
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Gagal mencatat: {str(e)}")
-        else:
-            st.warning("⚠️ Tidak ada makanan yang cocok di database.")
-            if st.button("Daftarkan Makanan Custom Baru", use_container_width=True):
-                st.session_state.expander_expanded = True
-                st.session_state.scroll_to_custom = True
-                st.session_state.prefilled_custom_name = search_query.strip().title()
-                st.rerun()
         
         # HTML Anchor for scrolling
         st.markdown('<div id="custom-food-anchor"></div>', unsafe_allow_html=True)

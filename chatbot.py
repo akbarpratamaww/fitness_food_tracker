@@ -56,13 +56,12 @@ class FitnessChatbot:
             # Add current user message
             messages.append({"role": "user", "content": user_message})
 
-            # Define tools for database insertion
             tools = [
                 {
                     "type": "function",
                     "function": {
                         "name": "log_food",
-                        "description": "ONLY call this if the user EXPLICITLY states they ALREADY ATE or ARE EATING a specific food. DO NOT call this if they are just asking for food recommendations, nutrition facts, or recipes.",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a food they ate. DO NOT call this for recommendations, recipes, or without asking first.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -81,7 +80,7 @@ class FitnessChatbot:
                     "type": "function",
                     "function": {
                         "name": "log_activity",
-                        "description": "ONLY call this if the user EXPLICITLY states they COMPLETED or ARE DOING an exercise. DO NOT call this if they are just asking for workout advice or recommendations.",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a workout they did. DO NOT call this for recommendations, workout advice, or without asking first.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -116,71 +115,67 @@ class FitnessChatbot:
                 from datetime import date
                 from database import add_food_log, add_activity_log
                 
-                user_id = self.user_data.get('user_id') if self.user_data else None
+                tool_call = response_message.tool_calls[0]
+                function_name = tool_call.function.name
                 
-                # 1. Format and append the assistant's tool calls message
-                tool_calls_formatted = []
-                for tc in response_message.tool_calls:
-                    tool_calls_formatted.append({
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    })
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except:
+                    function_args = {}
                     
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                tool_result_text = "Data not logged."
+                
+                if user_id:
+                    if function_name == "log_food":
+                        add_food_log(
+                            user_id=user_id,
+                            food_name=function_args.get("food_name", "Unknown Food"),
+                            calories=function_args.get("calories", 0),
+                            protein=function_args.get("protein", 0),
+                            carbs=function_args.get("carbs", 0),
+                            fat=function_args.get("fat", 0),
+                            meal_type=function_args.get("meal_type", "Snack"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('food_name')} with {function_args.get('calories', 0):.0f} kcal."
+                    
+                    elif function_name == "log_activity":
+                        add_activity_log(
+                            user_id=user_id,
+                            activity_type=function_args.get("activity_type", "Exercise"),
+                            duration_minutes=function_args.get("duration_minutes", 0),
+                            calories_burned=function_args.get("calories_burned", 0),
+                            intensity=function_args.get("intensity", "Medium"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('activity_type')} burning {function_args.get('calories_burned', 0):.0f} kcal."
+
+                # Append the assistant's tool call message
                 messages.append({
                     "role": "assistant",
-                    "content": response_message.content,
-                    "tool_calls": tool_calls_formatted
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                    ]
                 })
                 
-                # 2. Process each tool call and append the result
-                for tool_call in response_message.tool_calls:
-                    function_name = tool_call.function.name
-                    
-                    try:
-                        function_args = json.loads(tool_call.function.arguments)
-                    except:
-                        function_args = {}
-                        
-                    tool_result_text = "Data not logged."
-                    
-                    if user_id:
-                        if function_name == "log_food":
-                            add_food_log(
-                                user_id=user_id,
-                                food_name=function_args.get("food_name", "Unknown Food"),
-                                calories=function_args.get("calories", 0),
-                                protein=function_args.get("protein", 0),
-                                carbs=function_args.get("carbs", 0),
-                                fat=function_args.get("fat", 0),
-                                meal_type=function_args.get("meal_type", "Snack"),
-                                log_date=date.today().isoformat()
-                            )
-                            tool_result_text = f"SUCCESS: Logged {function_args.get('food_name')} with {function_args.get('calories', 0):.0f} kcal."
-                        
-                        elif function_name == "log_activity":
-                            add_activity_log(
-                                user_id=user_id,
-                                activity_type=function_args.get("activity_type", "Exercise"),
-                                duration_minutes=function_args.get("duration_minutes", 0),
-                                calories_burned=function_args.get("calories_burned", 0),
-                                intensity=function_args.get("intensity", "Medium"),
-                                log_date=date.today().isoformat()
-                            )
-                            tool_result_text = f"SUCCESS: Logged {function_args.get('activity_type')} burning {function_args.get('calories_burned', 0):.0f} kcal."
-
-                    # Append the tool result message
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": function_name,
-                        "content": tool_result_text
-                    })
+                # Append the tool result message
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": function_name,
+                    "content": tool_result_text
+                })
                 
-                # 3. Make a second API call to get the final conversational response
+                # Make a second API call to get the final conversational response
                 second_response = self.client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=messages,
@@ -238,8 +233,7 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 6. **Include small motivational tips** when relevant.
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
 8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
-9. **Log data automatically (STRICT RULE):** If the user explicitly tells you they *already ate* something or *already did* an exercise, use the `log_food` or `log_activity` tools to save it. DO NOT use these tools if the user is merely asking for recommendations, recipes, or advice.
-10. **Interactive Health & Calorie Feedback:** ALWAYS check the "Today's stats" (if provided) against the Daily Calorie Target. If their net calories exceed the target, gently point it out and proactively recommend specific exercises to burn the excess. If they are far below the target, suggest healthy snacks or meals to meet it. Be conversational and engaging, especially right after logging new data.
+9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
@@ -253,7 +247,9 @@ Provide practical, science-based advice on exercise, diet, weight loss, muscle g
 Keep responses concise (under 200 words) and actionable. Use emojis to be engaging.
 Respond in the same language as the user (Indonesian or English).
 
-CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features."""
+CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+
+DATABASE ACCESS: You have direct database access via the `log_food` and `log_activity` tools. Before calling any tool, you MUST always ask the user for text confirmation first. Only call the tool if they explicitly agree (e.g. reply 'Ya/Yes/Catat'). Do NOT call the tool on recommendations or without asking."""
 
     def _get_rule_based_response(self, user_message, context):
         """Enhanced fallback responses when API is not available."""

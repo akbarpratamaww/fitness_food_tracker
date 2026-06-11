@@ -22,23 +22,6 @@ def verify_user_id(user_id, signature):
         return False
     expected = sign_user_id(user_id)
     return hmac.compare_digest(expected, signature)
-
-import json
-
-SESSION_FILE = "data/session.json"
-
-def save_local_session(user_id):
-    """Disabled to prevent cross-client data leaks."""
-    pass
-
-def get_local_session():
-    """Disabled to prevent cross-client data leaks."""
-    return None
-
-def clear_local_session():
-    """Disabled to prevent cross-client data leaks."""
-    pass
-
 # Activity MET values (Metabolic Equivalent of Task)
 # Calories burned per minute = MET * 3.5 * weight_kg / 200
 ACTIVITY_MET = {
