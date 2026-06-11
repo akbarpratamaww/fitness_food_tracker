@@ -896,6 +896,51 @@ menu_options = [
     "AI Chatbot", "About", "Logout"
 ]
 
+# ── Reset today confirmation dialog ──
+@st.dialog("Konfirmasi Reset Kalori Hari Ini")
+def reset_today_confirm_dialog(user_id):
+    st.markdown("""
+    <style>
+        div[data-testid="stDialog"] > div { margin-top: 10vh !important; }
+        div[data-testid="stDialog"] [role="dialog"] { margin-top: 10vh !important; }
+        /* Yellow confirm button */
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button {
+            background-color: #F59E0B !important;
+            color: #1a1a1a !important;
+            border: 1px solid #F59E0B !important;
+            font-weight: 700 !important;
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button:hover {
+            background-color: #D97706 !important;
+            border-color: #D97706 !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:last-child button {
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="stHorizontalBlock"] {
+            align-items: center !important;
+        }
+    </style>
+    <div style="text-align:center; padding: 1rem 0 1.5rem 0;">
+        <div style="font-size:3.5rem; line-height:1; margin-bottom:1rem; display:block;">⚠️</div>
+        <p style="font-size:1.05rem; margin:0; color: var(--text-color);">
+            Semua log makanan &amp; aktivitas hari ini akan dihapus.<br>
+            <strong>Apakah Anda yakin ingin melanjutkan?</strong>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    col_yes, col_no = st.columns(2)
+    with col_yes:
+        if st.button("Ya, Reset", use_container_width=True, key="dialog_confirm_reset"):
+            reset_today_logs(user_id)
+            st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
+            time.sleep(0.6)
+            st.rerun()
+    with col_no:
+        if st.button("Batal", use_container_width=True, key="dialog_cancel_reset"):
+            st.rerun()
+
 # ── Logout confirmation dialog ──
 @st.dialog("Konfirmasi Logout")
 def logout_confirm_dialog():
@@ -1028,13 +1073,36 @@ if menu == "Dashboard":
             with r1_title_col:
                 st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
             with r1_btn_col:
-                st.markdown('<div class="yellow-button-wrapper">', unsafe_allow_html=True)
-                if st.button("Reset Hari Ini", key="reset_daily_btn", use_container_width=True):
-                    reset_today_logs(user['user_id'])
-                    st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
-                    time.sleep(0.6)
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown("""
+                <style>
+                    /* Yellow reset button */
+                    div[data-testid="stButton"][id="reset_daily_btn"] button,
+                    button[kind="secondary"][data-testid="baseButton-secondary"]:has(+ *) {
+                        background-color: #F59E0B !important;
+                    }
+                    /* Target by key - use parent container approach */
+                    div[data-testid="stColumn"]:last-child > div > div > div > button,
+                    div.stButton > button#reset_daily_btn {
+                        background-color: #F59E0B !important;
+                        color: #1a1a1a !important;
+                        border-color: #F59E0B !important;
+                        font-weight: 700 !important;
+                    }
+                    /* Broader selector - target the button in the right column of the header row */
+                    div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button {
+                        background-color: #F59E0B !important;
+                        color: #1a1a1a !important;
+                        border: 1px solid #F59E0B !important;
+                        font-weight: 700 !important;
+                    }
+                    div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button:hover {
+                        background-color: #D97706 !important;
+                        border-color: #D97706 !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+                if st.button("Reset Kalori Hari Ini", key="reset_daily_btn", use_container_width=True):
+                    reset_today_confirm_dialog(user['user_id'])
             col1, col2, col3, col4 = st.columns(4)
             
             calories_in, calories_out = get_today_summary(user['user_id'])
