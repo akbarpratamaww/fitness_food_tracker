@@ -902,6 +902,7 @@ if menu == "Dashboard":
                 for key in list(st.session_state.keys()):
                     if key != 'logged_out':
                         del st.session_state[key]
+                time.sleep(0.5)
                 st.rerun()
         
         # Quick terminology guide for laypeople
