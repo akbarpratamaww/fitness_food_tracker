@@ -25,10 +25,13 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     
-    html, body, [data-testid="stAppViewContainer"], .main {
+    html, body, [data-testid="stAppViewContainer"], .main, h1, h2, h3, h4, h5, h6, .stMarkdown p {
         font-family: 'Poppins', sans-serif;
-        background-color: var(--background-color) !important;
+        background-color: transparent !important;
         color: var(--text-color) !important;
+    }
+    .main {
+        background-color: var(--background-color) !important;
     }
     
     .main-header {
@@ -818,6 +821,12 @@ if menu == "🏠 Dashboard":
                 delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])),
                 help="Body Mass Index (Indeks Massa Tubuh) adalah pengukuran lemak tubuh berdasarkan tinggi dan berat badan untuk menentukan kategori berat badan ideal."
             )
+            
+        # Excessive / Deficient Calorie Warning
+        if remaining < -200:
+            st.warning("⚠️ **Warning:** Your calorie intake today has exceeded the target! Consider adding some physical activity.")
+        elif net_calories < -1000:
+            st.warning("⚠️ **Warning:** Your calorie deficit is very extreme today! Be careful, eating too little can slow down your metabolism. Make sure you eat enough.")
         
         # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
         st.markdown("---")
@@ -1397,7 +1406,7 @@ elif menu == "🍎 Food Log":
                         st.plotly_chart(fig, use_container_width=True)
                         
         # Educational Section
-        with st.expander("📚 PLearn About Apriori Algorithm & Data Mining"):
+        with st.expander("📚 Learn About Apriori Algorithm & Data Mining"):
             st.markdown("""
             ### What is Association Rule Mining & the Apriori Algorithm?
 
