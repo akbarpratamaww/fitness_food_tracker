@@ -1663,6 +1663,7 @@ elif menu == "🤖 AI Chatbot":
     # Inisialisasi chatbot jika belum ada atau jika profil baru diupdate
     if st.session_state.chatbot is None or st.session_state.profile_updated:
         user_data = {
+            'user_id': user['user_id'],
             'name': user['name'],
             'age': user['age'],
             'gender': user['gender'],
