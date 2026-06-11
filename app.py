@@ -457,12 +457,17 @@ st.markdown("""
         border-radius: 20px !important;
         padding: 2rem !important;
         margin-bottom: 2rem !important;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        overflow: visible !important;
+    }
+    
+    div[data-testid="stVerticalBlock"] {
+        overflow: visible !important;
     }
     
     div[data-testid="stForm"]:hover, div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        box-shadow: 0 20px 45px rgba(255, 87, 34, 0.15), 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2) !important;
         border-color: rgba(255, 87, 34, 0.3) !important;
         transform: translateY(-2px) !important;
     }
