@@ -46,12 +46,11 @@ class FitnessChatbot:
             # Prepare messages for API
             messages = [{"role": "system", "content": system_prompt}]
 
-            # Add conversation history (max last 8 messages = 4 exchanges)
-            # Keeping history short is critical to stay within daily token limits
+            # Add conversation history (max last 20 messages to avoid token overflow)
             if history and len(history) > 0:
-                recent_history = history[-8:]
+                recent_history = history[-20:]  # keep last 10 exchanges
                 for msg in recent_history:
-                    if msg['role'] in ['user', 'assistant'] and msg.get('content'):
+                    if msg['role'] in ['user', 'assistant']:
                         messages.append({"role": msg['role'], "content": msg['content']})
 
             # Add current user message
@@ -97,13 +96,13 @@ class FitnessChatbot:
             ]
 
             response = self.client.chat.completions.create(
-                # llama-3.1-8b-instant: 500k tokens/day free (vs 14k for 70b)
-                # Much higher daily quota means far fewer rate-limit errors
-                model="llama-3.1-8b-instant",
+                model="llama-3.3-70b-versatile",  # or "gemma2-9b-it" "llama-3.1-8b-instant" "llama-3.3-70b-versatile"
                 messages=messages,
                 temperature=0.7,
-                max_tokens=350,
+                max_tokens=400,
                 top_p=0.9,
+                frequency_penalty=0.3,
+                presence_penalty=0.3,
                 tools=tools,
                 tool_choice="auto"
             )
@@ -178,10 +177,10 @@ class FitnessChatbot:
                 
                 # Make a second API call to get the final conversational response
                 second_response = self.client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="llama-3.3-70b-versatile",
                     messages=messages,
                     temperature=0.7,
-                    max_tokens=350,
+                    max_tokens=400,
                     top_p=0.9
                 )
                 
@@ -276,19 +275,36 @@ class FitnessChatbot:
         else:
             bmi_cat = "Obese"
 
-        prompt = f"""You are FitBot, a friendly fitness & nutrition coach.
+        prompt = f"""You are an expert, empathetic, and highly knowledgeable fitness & nutrition coach named "FitBot". 
+Your goal is to help users achieve their health goals with practical, evidence-based advice.
 
-USER: {self.user_data.get('name', 'User')}, {self.user_data.get('age', '?')}yo {self.user_data.get('gender', '')}, {self.user_data.get('weight_kg', '?')}kg/{self.user_data.get('height_cm', '?')}cm, BMI {bmi:.1f} ({bmi_cat})
-Goal: {self.user_data.get('fitness_goal', 'Maintain Weight')} | Target: {self.user_data.get('daily_target_calories', 0):.0f} kcal/day | TDEE: {self.user_data.get('tdee', 0):.0f} kcal
+USER PROFILE:
+- Name: {self.user_data.get('name', 'User')}
+- Age: {self.user_data.get('age', 'N/A')}
+- Gender: {self.user_data.get('gender', 'N/A')}
+- Height: {self.user_data.get('height_cm', 'N/A')} cm
+- Weight: {self.user_data.get('weight_kg', 'N/A')} kg
+- BMI: {bmi:.1f} ({bmi_cat})
+- BMR: {self.user_data.get('bmr', 0):.0f} kcal/day
+- TDEE: {self.user_data.get('tdee', 0):.0f} kcal/day
+- Daily Calorie Target: {self.user_data.get('daily_target_calories', 0):.0f} kcal
+- Fitness Goal: {self.user_data.get('fitness_goal', 'Maintain Weight')}
 
-RULES:
-- Reply in user's language (Indonesian or English). Be concise (3-5 sentences max + bullets).
-- Use user's actual numbers when giving advice. Be specific and encouraging.
-- Off-topic questions: politely redirect to fitness/health.
-- LOG RULE (STRICT): ALWAYS ask user for confirmation before calling log_food or log_activity. Only call the tool AFTER user explicitly says Ya/Yes/Catat/Iya/Boleh. Never call automatically.
-- NEVER output raw text like <function=log_food>...</function>. Use the actual tool call only.
+INSTRUCTIONS FOR YOUR RESPONSES:
+1. **Be extremely helpful and specific** – Give actionable advice (e.g., "Eat 150g chicken breast with quinoa" not just "eat protein").
+2. **Use the user's profile** – Reference their BMI, target calories, and goal.
+3. **Be encouraging but honest** – If they ask something unrealistic, explain gently.
+4. **Keep responses concise but rich** – Aim for 3-5 sentences + bullet points if needed.
+5. **Respond in the user's language** – If they write in Indonesian, reply in Indonesian. If English, reply in English.
+6. **Include small motivational tips** when relevant.
+7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
+8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
+10. **NEVER write raw function call syntax in your text responses** – NEVER output text like `<function=log_food>{...}</function>` or `<function=log_activity>{...}</function>`. If you need to log data, use the actual tool call mechanism. Writing function syntax as plain text is strictly forbidden and will break the application.
 
-Tone: friendly, motivating, use emojis sparingly (💪🥗🏃)."""
+TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
+
+Remember: The user is a real person trying to improve their health. Make every response count!"""
 
         return prompt
 
