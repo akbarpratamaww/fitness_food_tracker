@@ -150,6 +150,17 @@ st.markdown("""
         transform: translateY(1px) !important;
     }
 
+    /* Custom style for yellow/amber buttons */
+    div.yellow-button-wrapper div.stButton > button {
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+        box-shadow: 0 6px 20px rgba(217, 119, 6, 0.3) !important;
+        color: white !important;
+    }
+    div.yellow-button-wrapper div.stButton > button:hover {
+        box-shadow: 0 8px 25px rgba(217, 119, 6, 0.45) !important;
+        filter: brightness(1.15) !important;
+    }
+
     /* Force bold text for all buttons and their inner text elements */
     button[data-testid^="stBaseButton"], 
     button[data-testid^="stBaseButton"] *,
@@ -370,6 +381,21 @@ st.markdown("""
             font-size: 0.78rem !important;
             padding: 0.32rem 0.55rem !important;
         }
+    }
+
+    /* Style Logout button in navbar to be red */
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) {
+        border-color: rgba(239, 68, 68, 0.35) !important;
+    }
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]):hover {
+        background: rgba(239, 68, 68, 0.12) !important;
+        border-color: rgba(239, 68, 68, 0.55) !important;
+    }
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) span,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) p,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) div,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) * {
+        color: #EF4444 !important;
     }
  
  
@@ -941,11 +967,13 @@ if menu == "Dashboard":
             with r1_title_col:
                 st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
             with r1_btn_col:
+                st.markdown('<div class="yellow-button-wrapper">', unsafe_allow_html=True)
                 if st.button("Reset Hari Ini", key="reset_daily_btn", use_container_width=True):
                     reset_today_logs(user['user_id'])
                     st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
                     time.sleep(0.6)
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns(4)
             
             calories_in, calories_out = get_today_summary(user['user_id'])
