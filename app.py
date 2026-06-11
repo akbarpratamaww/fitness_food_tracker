@@ -312,6 +312,11 @@ st.markdown("""
         overflow: hidden !important;
     }
     
+    /* Center horizontal radio buttons (navigation menu) */
+    div[role="radiogroup"] {
+        justify-content: center !important;
+    }
+    
     /* Responsive Styling for Mobile */
     @media (max-width: 768px) {
         .main-header {
@@ -523,19 +528,22 @@ if st.session_state.user_id is None:
                 if not login_username or not login_password:
                     st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                 else:
-                    user_row = authenticate_user(login_username, login_password)
-                    if user_row is not None:
-                        st.session_state.user_id = int(user_row['user_id'])
-                        st.session_state.user = user_row.to_dict()
-                        st.session_state.active_menu = "🏠 Dashboard"
-                        st.session_state.chatbot = None
-                        st.session_state.messages = []
-                        st.session_state.greeting_sent = False
-                        st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
-                        time.sleep(0.8)
-                        st.rerun()
+                    if not username_exists(login_username):
+                        st.markdown('<div class="warning-box">⚠️ Username belum terdaftar. Silakan beralih ke tab <strong>📝 Register</strong> untuk membuat akun baru.</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
+                        user_row = authenticate_user(login_username, login_password)
+                        if user_row is not None:
+                            st.session_state.user_id = int(user_row['user_id'])
+                            st.session_state.user = user_row.to_dict()
+                            st.session_state.active_menu = "🏠 Dashboard"
+                            st.session_state.chatbot = None
+                            st.session_state.messages = []
+                            st.session_state.greeting_sent = False
+                            st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                            time.sleep(0.8)
+                            st.rerun()
+                        else:
+                            st.markdown('<div class="danger-box">❌ Password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
 
     # -------- REGISTER TAB --------
     with auth_tab2:
@@ -730,7 +738,7 @@ if logged_user is None:
 
 menu_options = [
     "🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", "🏋️ Fitness Level Classifier",
-    "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"
+    "🤖 AI Chatbot", "ℹ️ About"
 ]
 
 # ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
@@ -1518,8 +1526,7 @@ elif menu == "🏋️ Fitness Level Classifier":
     st.markdown('<div class="main-header">🏋️ Klasifikasi Tingkat Kebugaran</div>', unsafe_allow_html=True)
     st.markdown("""
     <div style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
-        Masukkan data fisik dan hasil tes kebugaran Anda. Sistem akan memprediksi tingkat kebugaran 
-        menggunakan 3 algoritma Machine Learning: <strong>Random Forest, XGBoost, dan SVM</strong>.
+        Masukkan data fisik dan hasil tes kebugaran Anda. Sistem cerdas kami akan otomatis menganalisis dan memprediksi tingkat kebugaran Anda menggunakan algoritma Machine Learning terbaik.
     </div>
     """, unsafe_allow_html=True)
 
@@ -1555,16 +1562,8 @@ elif menu == "🏋️ Fitness Level Classifier":
         
         st.markdown("---")
         
-        st.subheader("🤖 Pilih Algoritma")
-        algorithm = st.selectbox(
-            "Model Machine Learning",
-            ["random_forest", "xgboost", "svm"],
-            format_func=lambda x: {
-                "random_forest": "🌲 Random Forest (Akurasi ~75%)",
-                "xgboost": "⚡ XGBoost (Akurasi ~75%)",
-                "svm": "🎯 SVM - Support Vector Machine (Akurasi ~70%)"
-            }[x]
-        )
+        # Algoritma otomatis dipilih (Random Forest sesuai permintaan)
+        algorithm = "random_forest"
         
         if st.button("🔍 Prediksi Tingkat Kebugaran", use_container_width=True):
             with st.spinner("Menganalisis data dengan model Machine Learning..."):
@@ -1610,7 +1609,7 @@ elif menu == "🏋️ Fitness Level Classifier":
                     st.markdown(f"""
                     <div style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
                         <h3 style="margin: 0 0 0.5rem 0;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
-                        <p style="margin: 0;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
+                        <p style="margin: 0;">Sistem memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -1664,6 +1663,7 @@ elif menu == "🤖 AI Chatbot":
     # Inisialisasi chatbot jika belum ada atau jika profil baru diupdate
     if st.session_state.chatbot is None or st.session_state.profile_updated:
         user_data = {
+            'user_id': user['user_id'],
             'name': user['name'],
             'age': user['age'],
             'gender': user['gender'],
@@ -1917,11 +1917,7 @@ elif menu == "ℹ️ About":
     - **Natural Language Food Logging:** Just describe what you ate
     - **Activity Tracking:** Log workouts with automatic calorie burn calculation (MET formula)
     - **AI-Powered Chatbot:** Get personalized fitness advice (Groq Llama 3.3 70B or rule-based fallback)
-    - **Machine Learning Predictor:** Predicts calorie burn during exercise (Random Forest Regressor)
-    - **Fitness Level Classifier:** Classify fitness level (A/B/C/D) using 3 ML algorithms:
-        - Random Forest (74.5% accuracy)
-        - XGBoost (76.4% accuracy)
-        - SVM (70.1% accuracy)
+    - **Fitness Level Classifier:** Classify fitness level (A/B/C/D) automatically using the best performing ML algorithm (Random Forest Regressor)
     - **Progress Dashboard:** Visual charts for weight and calorie trends
     
     ---
@@ -1946,9 +1942,7 @@ elif menu == "ℹ️ About":
     
     - **Calories Burned (MET):** (MET × 3.5 × weight) / 200 × minutes
     
-    - **Machine Learning for Calorie Prediction:** Random Forest Regressor
-    
-    - **Machine Learning for Fitness Classification:** Random Forest, XGBoost, SVM with StandardScaler
+    - **Machine Learning for Fitness Classification:** Random Forest Regressor with StandardScaler
     
     ---
     

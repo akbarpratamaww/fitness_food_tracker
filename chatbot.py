@@ -56,6 +56,46 @@ class FitnessChatbot:
             # Add current user message
             messages.append({"role": "user", "content": user_message})
 
+            # Define tools for database insertion
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_food",
+                        "description": "ONLY call this if the user EXPLICITLY states they ALREADY ATE or ARE EATING a specific food. DO NOT call this if they are just asking for food recommendations, nutrition facts, or recipes.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "food_name": {"type": "string", "description": "Name of the food"},
+                                "calories": {"type": "number", "description": "Estimated total calories (kcal)"},
+                                "protein": {"type": "number", "description": "Estimated total protein (g)"},
+                                "carbs": {"type": "number", "description": "Estimated total carbohydrates (g)"},
+                                "fat": {"type": "number", "description": "Estimated total fat (g)"},
+                                "meal_type": {"type": "string", "enum": ["Breakfast", "Lunch", "Dinner", "Snack"], "description": "Type of meal"}
+                            },
+                            "required": ["food_name", "calories", "protein", "carbs", "fat", "meal_type"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_activity",
+                        "description": "ONLY call this if the user EXPLICITLY states they COMPLETED or ARE DOING an exercise. DO NOT call this if they are just asking for workout advice or recommendations.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "activity_type": {"type": "string", "description": "Name of the exercise or activity"},
+                                "duration_minutes": {"type": "number", "description": "Duration in minutes"},
+                                "calories_burned": {"type": "number", "description": "Estimated calories burned"},
+                                "intensity": {"type": "string", "enum": ["Low", "Medium", "High"], "description": "Intensity of the activity"}
+                            },
+                            "required": ["activity_type", "duration_minutes", "calories_burned", "intensity"]
+                        }
+                    }
+                }
+            ]
+
             response = self.client.chat.completions.create(
                 model="llama-3.3-70b-versatile",  # or "gemma2-9b-it" "llama-3.1-8b-instant" "llama-3.3-70b-versatile"
                 messages=messages,
@@ -63,9 +103,91 @@ class FitnessChatbot:
                 max_tokens=400,
                 top_p=0.9,
                 frequency_penalty=0.3,
-                presence_penalty=0.3
+                presence_penalty=0.3,
+                tools=tools,
+                tool_choice="auto"
             )
-            return response.choices[0].message.content
+            
+            response_message = response.choices[0].message
+            
+            # Check for tool calls
+            if response_message.tool_calls:
+                import json
+                from datetime import date
+                from database import add_food_log, add_activity_log
+                
+                tool_call = response_message.tool_calls[0]
+                function_name = tool_call.function.name
+                
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except:
+                    function_args = {}
+                    
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                tool_result_text = "Data not logged."
+                
+                if user_id:
+                    if function_name == "log_food":
+                        add_food_log(
+                            user_id=user_id,
+                            food_name=function_args.get("food_name", "Unknown Food"),
+                            calories=function_args.get("calories", 0),
+                            protein=function_args.get("protein", 0),
+                            carbs=function_args.get("carbs", 0),
+                            fat=function_args.get("fat", 0),
+                            meal_type=function_args.get("meal_type", "Snack"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('food_name')} with {function_args.get('calories', 0):.0f} kcal."
+                    
+                    elif function_name == "log_activity":
+                        add_activity_log(
+                            user_id=user_id,
+                            activity_type=function_args.get("activity_type", "Exercise"),
+                            duration_minutes=function_args.get("duration_minutes", 0),
+                            calories_burned=function_args.get("calories_burned", 0),
+                            intensity=function_args.get("intensity", "Medium"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('activity_type')} burning {function_args.get('calories_burned', 0):.0f} kcal."
+
+                # Append the assistant's tool call message
+                messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                    ]
+                })
+                
+                # Append the tool result message
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": function_name,
+                    "content": tool_result_text
+                })
+                
+                # Make a second API call to get the final conversational response
+                second_response = self.client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=400,
+                    top_p=0.9
+                )
+                
+                return second_response.choices[0].message.content
+
+            return response_message.content
 
         except Exception as e:
             return f"⚠️ Maaf, terjadi kesalahan teknis. Silakan coba lagi. Detail: {str(e)}"
@@ -112,6 +234,7 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 6. **Include small motivational tips** when relevant.
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
 8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+9. **Log data automatically (STRICT RULE):** If the user explicitly tells you they *already ate* something or *already did* an exercise, use the `log_food` or `log_activity` tools to save it. DO NOT use these tools if the user is merely asking for recommendations, recipes, or advice.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
