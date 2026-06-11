@@ -1075,29 +1075,16 @@ if menu == "Dashboard":
             with r1_btn_col:
                 st.markdown("""
                 <style>
-                    /* Yellow reset button */
-                    div[data-testid="stButton"][id="reset_daily_btn"] button,
-                    button[kind="secondary"][data-testid="baseButton-secondary"]:has(+ *) {
-                        background-color: #F59E0B !important;
-                    }
-                    /* Target by key - use parent container approach */
-                    div[data-testid="stColumn"]:last-child > div > div > div > button,
-                    div.stButton > button#reset_daily_btn {
-                        background-color: #F59E0B !important;
-                        color: #1a1a1a !important;
-                        border-color: #F59E0B !important;
-                        font-weight: 700 !important;
-                    }
-                    /* Broader selector - target the button in the right column of the header row */
+                    /* Thin yellow reset button — mirrors the Logout red style */
                     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button {
-                        background-color: #F59E0B !important;
-                        color: #1a1a1a !important;
-                        border: 1px solid #F59E0B !important;
+                        background: rgba(245, 158, 11, 0.06) !important;
+                        color: #F59E0B !important;
+                        border: 1px solid rgba(245, 158, 11, 0.4) !important;
                         font-weight: 700 !important;
                     }
                     div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child button:hover {
-                        background-color: #D97706 !important;
-                        border-color: #D97706 !important;
+                        background: rgba(245, 158, 11, 0.15) !important;
+                        border-color: rgba(245, 158, 11, 0.65) !important;
                     }
                 </style>
                 """, unsafe_allow_html=True)
