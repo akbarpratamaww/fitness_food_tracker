@@ -541,12 +541,9 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
 # Recover session from cookie.
-# Two-layer guard against stale cookie auto-login:
-#   1. session_state.logged_out  → blocks recovery on the IMMEDIATE rerun after logout
-#                                  (cookie write is async and may not be ready yet)
-#   2. user_logout cookie        → blocks recovery on BROWSER RELOAD (session_state is gone)
-_logout_flag = st.session_state.get('logged_out', False) or controller.get('user_logout')
-if st.session_state.user_id is None and not _logout_flag:
+# Single-layer guard against stale cookie auto-login on the IMMEDIATE rerun after logout
+# (the cookie write is async and may not be ready yet)
+if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
     try:
         token = controller.get('user_session')
         if token and token.strip():
@@ -654,7 +651,7 @@ if st.session_state.user_id is None:
                             st.session_state.user = user_row.to_dict()
                             token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                             controller.set('user_session', token, max_age=2592000)  # 30 days
-                            controller.set('user_logout', '', expires=datetime(1970, 1, 1), max_age=0)  # clear logout flag
+                            st.session_state.logged_out = False  # reset logged out state
                             st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
@@ -833,9 +830,9 @@ if st.session_state.user_id is None:
                                 user_row = get_user(new_uid)
                                 st.session_state.user_id = new_uid
                                 st.session_state.user = user_row.to_dict()
-                                token = f"{new_uid}:{sign_user_id(new_uid)}"
+                                token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                                 controller.set('user_session', token, max_age=2592000)  # 30 days
-                                controller.set('user_logout', '', expires=datetime(1970, 1, 1), max_age=0)  # clear logout flag
+                                st.session_state.logged_out = False
                                 st.query_params.clear()
                                 st.session_state.active_menu = "Dashboard"
                                 st.session_state.chatbot = None
@@ -917,8 +914,6 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                # Set the persistent logout cookie (for browser reloads)
-                controller.set('user_logout', '1', max_age=86400)   # 24h
                 controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)        # clear session cookie
                 # Clear user-specific session state but KEEP logged_out flag
                 # so the IMMEDIATE st.rerun() below is also protected
