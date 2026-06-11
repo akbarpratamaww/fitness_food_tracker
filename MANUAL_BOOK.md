@@ -1,173 +1,164 @@
-# 📖 Panduan Pengguna (Manual Book)
+# 📖 User Guide (Manual Book)
 ## Smart Fitness & Food Tracker
 
-Selamat datang di **Smart Fitness & Food Tracker**! Aplikasi ini dirancang untuk membantu Anda memantau nutrisi harian, mencatat aktivitas olahraga, menganalisis tingkat kebugaran dengan Machine Learning, memprediksi berat badan di masa mendatang, serta berkonsultasi langsung dengan asisten kesehatan pintar (AI Chatbot).
+Welcome to the **Smart Fitness & Food Tracker**! This application is designed to help you monitor your daily nutrition, log your workouts, analyze your fitness level using Machine Learning, forecast future weight trends, and consult directly with a smart health assistant (AI Chatbot).
 
-Panduan ini akan menuntun Anda langkah demi langkah dalam menggunakan seluruh fitur aplikasi, dimulai sejak Anda pertama kali membuka link/tautan aplikasi.
+This guide will walk you step-by-step through using all the features of the application, starting from when you first open the app.
 
 ---
 
-## Daftar Isi
-1. [Membuka Aplikasi & Langkah Awal: Setup Profil](#1-membuka-aplikasi--langkah-awal-setup-profil)
-2. [Navigasi Menu Utama](#2-navigasi-menu-utama)
-   - [Dashboard (Beranda)](#-dashboard-beranda)
-   - [Food Log (Catatan Makanan & Analisis Apriori)](#-food-log-catatan-makanan--analisis-apriori)
-   - [Activity Log (Catatan Aktivitas)](#-activity-log-catatan-aktivitas)
-   - [Fitness Level Classifier (Klasifikasi Kebugaran)](#-fitness-level-classifier-klasifikasi-kebugaran)
-   - [Progress & Weight Forecasting (Progres & Prediksi Berat Badan)](#-progress--weight-forecasting-progres--prediksi-berat-badan)
+## Table of Contents
+1. [Getting Started: Account & Profile Setup](#1-getting-started-account--profile-setup)
+2. [Main Menu Navigation](#2-main-menu-navigation)
+   - [Dashboard (Home)](#-dashboard-home)
+   - [Food Log (Food Tracking & Apriori Analysis)](#-food-log-food-tracking--apriori-analysis)
+   - [Activity Log (Workout Tracking)](#-activity-log-workout-tracking)
+   - [Fitness Level Classifier](#-fitness-level-classifier)
    - [AI Chatbot (FitBot)](#-ai-chatbot-fitbot)
-   - [ML Predictor (Prediksi Kalori Terbakar)](#-ml-predictor-prediksi-kalori-terbakar)
-   - [About (Tentang Aplikasi)](#-about-tentang-aplikasi)
-3. [Tips Tambahan untuk Hasil Terbaik](#3-tips-tambahan-untuk-hasil-terbaik)
+   - [ML Predictor (Calories Burned Prediction)](#-ml-predictor-calories-burned-prediction)
+   - [About](#-about)
+3. [Additional Tips for Best Results](#3-additional-tips-for-best-results)
 
 ---
 
-## 1. Membuka Aplikasi & Langkah Awal: Setup Profil
+## 1. Getting Started: Account & Profile Setup
 
-Saat Anda pertama kali mengakses tautan (link) aplikasi di browser Anda, Anda akan disambut oleh halaman beranda. Jika Anda belum pernah menggunakan aplikasi ini sebelumnya, sistem akan menampilkan peringatan:
-`⚠️ Please complete your profile first!`
+When you first open the application, you will be greeted by the Authentication Gate. To access the tracker, you must either log in to an existing account or register a new one.
 
-Anda harus mengisi profil terlebih dahulu agar aplikasi dapat menghitung kebutuhan kalori harian Anda secara akurat sesuai dengan parameter tubuh Anda.
+### How to Log In:
+1. If you already have an account, stay on the **🔑 Login** tab.
+2. Enter your **Username** and **Password**.
+3. Click the **🔑 Login** button. Once authenticated, you will be redirected to the Dashboard.
 
-### Cara Melakukan Setup Profil:
-1. Klik tombol **Go to Profile** pada pesan peringatan, atau pilih menu **👤 Profile** di sidebar sebelah kiri.
-2. Isi formulir profil Anda secara lengkap:
-   * **Name**: Nama panggilan Anda.
-   * **Age**: Umur Anda saat ini (minimal 15 tahun).
-   * **Gender**: Jenis kelamin Anda (Male/Female).
-   * **Height (cm)**: Tinggi badan Anda dalam satuan sentimeter.
-   * **Weight (kg)**: Berat badan Anda saat ini dalam satuan kilogram.
-   * **Activity Level**: Tingkat aktivitas fisik harian Anda (pilih tingkat yang paling menggambarkan aktivitas harian Anda, dari tidak aktif hingga sangat aktif).
-   * **Fitness Goal**: Tujuan kebugaran Anda (Weight Loss / Maintain Weight / Muscle Gain).
-3. Setelah seluruh kolom diisi, di bagian bawah formulir akan muncul kalkulasi metrik kesehatan Anda secara instan:
-   * **BMR (Basal Metabolic Rate)**: Kebutuhan kalori minimal tubuh untuk bertahan hidup saat istirahat total.
-   * **TDEE (Total Daily Energy Expenditure)**: Perkiraan kalori yang Anda bakar dalam sehari setelah memperhitungkan aktivitas fisik harian.
-   * **Daily Target**: Target asupan kalori harian yang disesuaikan dengan **Fitness Goal** Anda (misal: defisit kalori untuk menurunkan berat badan, atau surplus untuk meningkatkan massa otot).
-   * **BMI (Body Mass Index)**: Indeks Massa Tubuh beserta kategorinya (Underweight, Normal, Overweight, Obese).
-4. Klik tombol **💾 Save Profile**. Profil Anda akan disimpan secara otomatis dan sistem akan menampilkan animasi balon tanda keberhasilan.
+### How to Register & Set Up Your Profile:
+If you are a new user, switch to the **📝 Register** tab and complete the multi-step setup wizard:
 
----
-
-## 2. Navigasi Menu Utama
-Setelah profil berhasil disimpan, Anda dapat mulai menggunakan seluruh fitur aplikasi dengan memilih menu di bilah navigasi kiri (Sidebar):
-
-### 🏠 Dashboard (Beranda)
-Halaman ini menyajikan ringkasan instan mengenai aktivitas harian Anda:
-1. **Metrik Harian**:
-   * **Calories In**: Jumlah kalori yang sudah Anda konsumsi hari ini dibandingkan dengan target harian Anda.
-   * **Calories Out**: Jumlah kalori yang sudah Anda bakar lewat aktivitas olahraga hari ini.
-   * **Net Balance**: Selisih kalori masuk dan keluar, serta sisa kalori yang masih boleh Anda konsumsi.
-   * **BMI**: Kategori Indeks Massa Tubuh Anda saat ini.
-2. **Weekly Calorie Summary**: Grafik batang interaktif yang membandingkan kalori masuk vs kalori keluar selama 7 hari terakhir.
-3. **Recent Activities**: Menampilkan daftar makanan (`Recent Meals`) dan latihan fisik (`Recent Workouts`) terbaru yang Anda catat hari ini.
+1. **Step 0 - Welcome**: Click the **🚀 Get Started** button.
+2. **Step 1 - Account Details**: Create a unique **Username** and a secure **Password**.
+3. **Step 2 - Personal Data**: Provide your **Name**, **Gender** (Male/Female), **Age**, **Height (cm)**, and **Weight (kg)**.
+4. **Step 3 - Fitness Parameters**: Select your daily **Activity Level** and your primary **Fitness Goal** (Weight Loss / Maintain Weight / Muscle Gain).
+5. **Step 4 - Review Metrics**: Based on your inputs, the system will instantly calculate your health metrics:
+   * **BMR (Basal Metabolic Rate)**: Minimum calories your body needs to survive at rest.
+   * **TDEE (Total Daily Energy Expenditure)**: Estimated calories burned in a day with physical activity.
+   * **Daily Target**: Your specific daily calorie target tailored to your goal.
+   * **BMI (Body Mass Index)**: Your body mass index and category.
+6. Click **✨ Complete Setup**. Your account will be created, and you will be automatically logged in and taken to the Dashboard.
 
 ---
 
-### 🍎 Food Log (Catatan Makanan & Analisis Apriori)
-Di halaman ini, Anda dapat mencatat makanan dan menganalisis pola makan Anda. Terdapat 4 tab menu:
+## 2. Main Menu Navigation
+Once your profile is successfully saved, you can start using all the application's features by selecting the menus in the left navigation bar (Sidebar):
 
-#### 1. Tab `📝 Log Food` (Pencatatan Makanan Pintar)
-Mencatat makanan sangat mudah karena sistem mendukung deskripsi menggunakan bahasa sehari-hari.
-* **Cara Menggunakan**:
-  1. Tulis makanan Anda di kolom deskripsi. Contoh: `"2 slices of pizza"`, `"200g chicken breast"`, `"banana"`, atau `"rice"`.
-  2. Pilih jenis waktu makan pada **Meal Type** (Breakfast, Lunch, Dinner, atau Snack).
-  3. Klik **📝 Log Food**. Sistem akan otomatis mendeteksi nama makanan serta kandungan gizinya (kalori, protein, karbohidrat, lemak).
-
-#### 2. Tab `🍽️ Meal Suggestions` (Rekomendasi Menu)
-* Menampilkan sisa target kalori harian Anda.
-* Memberikan saran makanan sehat yang cocok dikonsumsi sesuai dengan sisa kalori yang tersedia.
-
-#### 3. Tab `📋 Food History` (Riwayat Konsumsi)
-* Menampilkan riwayat makanan yang Anda konsumsi selama 30 hari terakhir dalam bentuk tabel detail.
-* Menyajikan jumlah kalori keseluruhan selama satu bulan terakhir.
-
-#### 4. Tab `🛒 Food Association Rules` (Analisis Pola Makan - Apriori)
-Fitur ini menganalisis pola makanan yang sering Anda konsumsi bersamaan menggunakan **Algoritma Apriori**.
-* **Cara Menggunakan**:
-  1. **Data Source**: Pilih *"Sample Food History Dataset (Demo)"* untuk simulasi cepat, atau *"My Personal Food Logs"* untuk menganalisis riwayat makanan Anda sendiri.
-  2. **Transaction Grouping**: Kelompokkan transaksi per hari atau per jenis waktu makan.
-  3. **Minimum Support & Confidence**: Atur sensitivitas algoritma.
-  4. Klik **🚀 Analyze Patterns**.
-  5. Hasil analisis akan memunculkan daftar aturan asosiasi makanan (contoh: *"Jika Anda makan Roti, kemungkinan besar Anda juga makan Selai"*), beserta visualisasi **Top 10 Makanan Terpopuler**.
+### 🏠 Dashboard (Home)
+This page provides an instant summary of your daily activities:
+1. **Daily Metrics**:
+   * **Calories In**: The number of calories you have consumed today compared to your daily target.
+   * **Calories Out**: The number of calories you have burned through exercise today.
+   * **Net Balance**: The difference between calories in and calories out, as well as the remaining calories you can still consume. *Note: You will receive automated excessive/deficient calorie warnings here if your intake is too high or deficit is dangerously low.*
+   * **BMI**: Your current Body Mass Index category.
+2. **Weekly Calorie Summary**: An interactive bar chart comparing calories in vs. calories out over the last 7 days.
+3. **Calorie Trend Analysis**: An interactive line chart displaying the 30-day trend of your Calories In, Calories Out, and Net Calories to help you identify long-term patterns.
+4. **Weight Progress**: 
+   * Displays a line chart of your weight fluctuations over time.
+   * Enter your latest weight in the column on the right and click **📝 Record Weight** to update your weight log.
+4. **Weight Forecasting (ML — Linear Regression)**:
+   * Predicts your future weight (7, 14, or 30 days ahead) based on your historical weight logs using a *Linear Regression* algorithm.
+   * **Note**: This prediction feature requires a minimum of **2 weight logs** on different dates to generate a trend estimate.
+5. **Recent Activities**: Displays a list of your most recently logged meals (`Recent Meals`) and physical exercises (`Recent Workouts`) for the day.
 
 ---
 
-### 🏃 Activity Log (Catatan Aktivitas)
-Catat latihan olahraga Anda untuk melacak kalori yang dibakar. Terdapat 2 tab menu:
+### 🍎 Food Log (Food Tracking & Apriori Analysis)
+On this page, you can log your meals and analyze your eating patterns. There are 4 menu tabs:
+
+#### 1. Tab `📝 Log Food` (Smart Food Logging)
+Logging food is very easy because the system supports natural language descriptions.
+* **How to Use**:
+  1. Describe your meal in the text area. Example: `"2 slices of pizza"`, `"200g chicken breast"`, `"banana"`, or `"rice"`.
+  2. Select the meal type under **Meal Type** (Breakfast, Lunch, Dinner, or Snack).
+  3. Click **📝 Log Food**. The system will automatically detect the food name and its nutritional content (calories, protein, carbs, fat).
+
+#### 2. Tab `🍽️ Meal Suggestions`
+* Displays your remaining daily calorie target.
+* Provides healthy food suggestions suitable for consumption based on the remaining calories available.
+
+#### 3. Tab `📋 Food History`
+* Displays your food consumption history over the last 30 days in a detailed table format.
+* Shows your total calorie intake over the past month.
+
+#### 4. Tab `🛒 Food Association Rules` (Eating Pattern Analysis - Apriori)
+This feature analyzes patterns of foods you frequently consume together using the **Apriori Algorithm**.
+* **How to Use**:
+  1. **Data Source**: Select *"Sample Food History Dataset (Demo)"* for a quick simulation, or *"My Personal Food Logs"* to analyze your own food history.
+  2. **Transaction Grouping**: Group transactions by day or by meal type.
+  3. **Minimum Support & Confidence**: Adjust the algorithm's sensitivity.
+  4. Click **🚀 Analyze Patterns**.
+  5. The analysis results will display a list of food association rules (e.g., *"If you eat Bread, you are highly likely to also eat Jam"*), along with a visual of the **Top 10 Most Popular Foods**.
+
+---
+
+### 🏃 Activity Log (Workout Tracking)
+Log your physical exercises to track the calories you burn. There are 2 menu tabs:
 
 #### 1. Tab `📝 Log Activity`
-* **Cara Menggunakan**:
-  1. Pilih jenis aktivitas pada **Activity Type** (misal: Running, Cycling, Swimming, Yoga, Weight Lifting).
-  2. Masukkan durasi olahraga dalam menit.
-  3. Pilih tingkat intensitas (Low, Medium, High).
-  4. Kolom **Estimated Calories Burned** akan otomatis menghitung kalori terbakar berdasarkan standar nilai MET (Metabolic Equivalent of Task) dan berat badan Anda.
-  5. Klik tombol **✅ Log Activity** untuk menyimpan aktivitas.
+* **How to Use**:
+  1. Select the activity type under **Activity Type** (e.g., Running, Cycling, Swimming, Yoga, Weight Lifting).
+  2. Enter the workout duration in minutes.
+  3. Select the intensity level (Low, Medium, High).
+  4. The **Estimated Calories Burned** section will automatically calculate the calories burned based on standard MET (Metabolic Equivalent of Task) values and your body weight.
+  5. Click the **✅ Log Activity** button to save the activity.
 
 #### 2. Tab `📋 Activity History`
-* Menampilkan seluruh riwayat latihan olahraga Anda selama 30 hari terakhir.
+* Displays your entire workout history over the last 30 days.
 
 ---
 
-### 🏋️ Fitness Level Classifier (Klasifikasi Kebugaran)
-Gunakan fitur ini untuk mengetahui tingkat kebugaran fisik Anda ke dalam kelas **A (Sangat Baik), B (Baik), C (Cukup), atau D (Kurang)** menggunakan model Machine Learning.
+### 🏋️ Fitness Level Classifier
+Use this feature to classify your physical fitness level into **A (Excellent), B (Good), C (Average), or D (Poor)** using Machine Learning models.
 
-* **Cara Menggunakan**:
-  1. Masukkan data fisik: Jenis Kelamin, Usia, Tinggi Badan, Berat Badan, dan Persentase Lemak Tubuh.
-  2. Masukkan hasil tes kebugaran fisik Anda:
-     * Tekanan darah (Diastolik & Sistolik).
-     * Kekuatan genggaman tangan (`Grip Force`).
-     * Kelenturan tubuh saat membungkuk (`Sit and Bend`).
-     * Jumlah Sit-up yang dapat dilakukan dalam satu menit.
-     * Jarak lompatan terjauh (`Broad Jump`).
-  3. Pilih model Machine Learning yang ingin digunakan (Random Forest, XGBoost, atau SVM).
-  4. Klik **🔍 Prediksi Tingkat Kebugaran**.
-  5. Hasil klasifikasi, tingkat keyakinan model, serta rekomendasi olahraga penunjang akan ditampilkan di layar.
-
----
-
-### 📈 Progress & Weight Forecasting (Progres & Prediksi Berat Badan)
-Pantau grafik perkembangan tubuh Anda secara visual:
-
-1. **Weight Progress (Perkembangan Berat Badan)**:
-   * Menampilkan grafik garis fluktuasi berat badan Anda dari waktu ke waktu.
-   * Masukkan berat badan terbaru Anda pada kolom di sebelah kanan lalu klik **📝 Record Weight** untuk memperbarui catatan berat badan.
-2. **Weight Forecasting (ML — Linear Regression)**:
-   * Memprediksi berat badan Anda ke depan (7, 14, atau 30 hari ke depan) berdasarkan tren riwayat catatan berat badan Anda sebelumnya menggunakan algoritma *Linear Regression*.
-   * **Catatan**: Fitur prediksi ini membutuhkan minimal **2 catatan berat badan** dengan tanggal berbeda untuk menghasilkan estimasi tren.
-3. **Calorie Trend Analysis**:
-   * Grafik garis interaktif yang membandingkan tren Kalori Masuk (makanan), Kalori Keluar (olahraga), dan Kalori Bersih (Net) selama 30 hari terakhir.
+* **How to Use**:
+  1. Enter your physical data: Gender, Age, Height, Weight, and Body Fat Percentage.
+  2. Enter your physical fitness test results:
+     * Blood pressure (Diastolic & Systolic).
+     * Grip strength (`Grip Force`).
+     * Body flexibility (`Sit and Bend`).
+     * Number of Sit-ups performed in one minute.
+     * Longest jump distance (`Broad Jump`).
+  3. Choose the Machine Learning model you want to use (Random Forest, XGBoost, or SVM).
+  4. Click **🔍 Predict Fitness Level**.
+  5. The classification result, the model's confidence level, and supporting exercise recommendations will be displayed on the screen.
 
 ---
 
 ### 🤖 AI Chatbot (FitBot)
-FitBot adalah asisten virtual interaktif bertenaga AI yang siap menjawab semua pertanyaan seputar kebugaran dan nutrisi.
+FitBot is an interactive AI-powered virtual assistant ready to answer all your questions regarding fitness and nutrition.
 
-* **Cara Menggunakan**:
-  1. Ketik pertanyaan Anda pada kotak input chat di bagian bawah (mendukung Bahasa Indonesia dan Bahasa Inggris).
-  2. Tekan Enter. FitBot akan menganalisis profil kebugaran Anda dan memberikan saran personal yang spesifik untuk Anda.
-  3. Anda juga dapat mengklik tombol pertanyaan cepat di sidebar kanan (**💡 Quick Questions**) seperti *"Give me a home workout plan"* untuk berkonsultasi secara instan.
-
----
-
-### 📊 ML Predictor (Prediksi Kalori Terbakar)
-Menggunakan model Machine Learning **Random Forest Regressor** untuk memprediksi kalori yang terbakar secara spesifik berdasarkan parameter fisiologis olahraga.
-
-* **Cara Menggunakan**:
-  1. Masukkan data diri Anda (Gender, Age, Height, Weight).
-  2. Masukkan detail sesi latihan Anda: durasi latihan (menit), detak jantung rata-rata (bpm), dan suhu tubuh (°C).
-  3. Klik **🔮 Predict Calories Burned** untuk memunculkan hasil estimasi kalori terbakar.
+* **How to Use**:
+  1. Type your question in the chat input box at the bottom (supports Indonesian and English).
+  2. Press Enter. FitBot will analyze your fitness profile and provide personalized advice tailored specifically for you.
+  3. You can also click the quick question buttons in the right sidebar (**💡 Quick Questions**) such as *"Give me a home workout plan"* for instant consultation.
 
 ---
 
-### ℹ️ About (Tentang Aplikasi)
-Menu ini berisi informasi latar belakang aplikasi, rumus ilmiah yang digunakan (BMR Mifflin-St Jeor, TDEE, Rumus MET), serta status ketersediaan dataset model Machine Learning di server aplikasi.
+### 📊 ML Predictor (Calories Burned Prediction)
+Uses the **Random Forest Regressor** Machine Learning model to specifically predict calories burned based on the physiological parameters of your workout.
+
+* **How to Use**:
+  1. Enter your personal data (Gender, Age, Height, Weight).
+  2. Enter your workout session details: workout duration (minutes), average heart rate (bpm), and body temperature (°C).
+  3. Click **🔮 Predict Calories Burned** to generate the estimated calories burned.
 
 ---
 
-## 3. Tips Tambahan untuk Hasil Terbaik
-* **Catat Secara Rutin**: Lakukan pencatatan makanan dan aktivitas setiap hari agar grafik perkembangan Anda tetap akurat.
-* **Timbang Badan Berkala**: Perbarui berat badan Anda seminggu sekali di menu **Progress** untuk mengaktifkan fitur prediksi tren berat badan (*Weight Forecasting*).
-* **Gunakan Bantuan AI**: Jangan ragu untuk menanyakan resep menu makan sehat atau rencana variasi latihan baru langsung kepada **FitBot**.
+### ℹ️ About
+This menu contains background information about the application, the scientific formulas used (Mifflin-St Jeor BMR, TDEE, MET Formula), and the availability status of the Machine Learning model datasets on the application server.
 
 ---
-*Semoga perjalanan hidup sehat Anda menyenangkan dan sukses mencapai target!* 💪
+
+## 3. Additional Tips for Best Results
+* **Log Consistently**: Log your food and activities every day to keep your progress charts accurate.
+* **Weigh Yourself Regularly**: Update your weight once a week on the **Dashboard** to activate and improve the accuracy of the *Weight Forecasting* feature.
+* **Use the AI Assistant**: Do not hesitate to ask **FitBot** for healthy recipes or new workout plan variations directly.
+
+---
+*We hope you enjoy your healthy lifestyle journey and successfully reach your goals!* 💪

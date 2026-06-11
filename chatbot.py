@@ -1,270 +1,282 @@
 import os
-import re
-import json
-import streamlit as st
+import streamlit as st          # <--- BARU: import streamlit
 from dotenv import load_dotenv
 from groq import Groq
-from datetime import datetime, date
+from datetime import datetime
 
-load_dotenv()
-
-# ── Model Configuration ──────────────────────────────────────────────────────
-# llama3-groq-70b-8192-tool-use-preview is Groq's dedicated tool-use model,
-# far more reliable at producing proper tool_calls instead of leaking
-# function syntax into plain text. Falls back to versatile model if needed.
-PRIMARY_MODEL   = "llama3-groq-70b-8192-tool-use-preview"
-FOLLOWUP_MODEL  = "llama-3.3-70b-versatile"
-
+load_dotenv()  # tetap digunakan untuk localhost
 
 class FitnessChatbot:
     def __init__(self, user_data=None):
         self.user_data = user_data
         self.client = None
-
-        api_key = os.getenv('GROQ_API_KEY') or (
-            st.secrets.get('GROQ_API_KEY')
-            if hasattr(st, 'secrets') else None
-        )
+        
+        # --- Mencari API Key dari berbagai sumber ---
+        api_key = None
+        
+        # 1. Coba dari environment variable (file .env atau sistem)
+        if os.getenv('GROQ_API_KEY'):
+            api_key = os.getenv('GROQ_API_KEY')
+        
+        # 2. Jika tidak ada, coba dari Streamlit Secrets (untuk cloud)
+        elif hasattr(st, 'secrets') and 'GROQ_API_KEY' in st.secrets:
+            api_key = st.secrets['GROQ_API_KEY']
+        
+        # 3. Jika ditemukan, inisialisasi client Groq
         if api_key:
             self.client = Groq(api_key=api_key)
 
-    # ── Public entry point ───────────────────────────────────────────────────
     def get_response(self, user_message, context=None, history=None):
+        """Generate response using Groq API or fallback rule-based."""
         if self.client:
             return self._get_groq_response(user_message, context, history)
-        return self._get_rule_based_response(user_message, context)
+        else:
+            return self._get_rule_based_response(user_message, context)
 
-    # ── Core Groq response ───────────────────────────────────────────────────
     def _get_groq_response(self, user_message, context, history):
+        """Get response from Groq API with full conversation memory."""
         try:
+            # Build dynamic system prompt with user profile and context
             system_prompt = self._build_system_prompt()
-
+            
+            # Add today's calorie context if available
             if context and context.get('calories_in') is not None:
-                system_prompt += (
-                    f"\n\n📊 Today's stats: {context['calories_in']:.0f} kcal consumed, "
-                    f"{context['calories_out']:.0f} kcal burned. "
-                    f"Net: {context['calories_in'] - context['calories_out']:.0f} kcal."
-                )
+                system_prompt += f"\n\n📊 Today's stats: {context['calories_in']:.0f} kcal consumed, {context['calories_out']:.0f} kcal burned. Net: {context['calories_in'] - context['calories_out']:.0f} kcal."
 
+            # Prepare messages for API
             messages = [{"role": "system", "content": system_prompt}]
 
-            if history:
-                for msg in history[-20:]:
-                    if msg['role'] in ('user', 'assistant') and msg.get('content'):
+            # Add conversation history (max last 20 messages to avoid token overflow)
+            if history and len(history) > 0:
+                recent_history = history[-20:]  # keep last 10 exchanges
+                for msg in recent_history:
+                    if msg['role'] in ['user', 'assistant']:
                         messages.append({"role": msg['role'], "content": msg['content']})
 
+            # Add current user message
             messages.append({"role": "user", "content": user_message})
 
-            tools = self._build_tools()
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_food",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a food they ate. DO NOT call this for recommendations, recipes, or without asking first.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "food_name": {"type": "string", "description": "Name of the food"},
+                                "calories": {"type": "number", "description": "Estimated total calories (kcal)"},
+                                "protein": {"type": "number", "description": "Estimated total protein (g)"},
+                                "carbs": {"type": "number", "description": "Estimated total carbohydrates (g)"},
+                                "fat": {"type": "number", "description": "Estimated total fat (g)"},
+                                "meal_type": {"type": "string", "enum": ["Breakfast", "Lunch", "Dinner", "Snack"], "description": "Type of meal"}
+                            },
+                            "required": ["food_name", "calories", "protein", "carbs", "fat", "meal_type"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "log_activity",
+                        "description": "ONLY call this if the user has explicitly confirmed (e.g., replied 'Ya', 'Yes', 'Catat', 'Tolong' to your confirmation question) that they want to log a workout they did. DO NOT call this for recommendations, workout advice, or without asking first.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "activity_type": {"type": "string", "description": "Name of the exercise or activity"},
+                                "duration_minutes": {"type": "number", "description": "Duration in minutes"},
+                                "calories_burned": {"type": "number", "description": "Estimated calories burned"},
+                                "intensity": {"type": "string", "enum": ["Low", "Medium", "High"], "description": "Intensity of the activity"}
+                            },
+                            "required": ["activity_type", "duration_minutes", "calories_burned", "intensity"]
+                        }
+                    }
+                }
+            ]
 
-            # ── First API call ───────────────────────────────────────────────
             response = self.client.chat.completions.create(
-                model=PRIMARY_MODEL,
+                model="llama-3.3-70b-versatile",  # or "gemma2-9b-it" "llama-3.1-8b-instant" "llama-3.3-70b-versatile"
                 messages=messages,
-                temperature=0.6,
-                max_tokens=512,
+                temperature=0.7,
+                max_tokens=400,
                 top_p=0.9,
+                frequency_penalty=0.3,
+                presence_penalty=0.3,
                 tools=tools,
-                tool_choice="auto",
+                tool_choice="auto"
             )
-
+            
             response_message = response.choices[0].message
-
-            # ── Handle proper tool_calls ─────────────────────────────────────
+            
+            # Check for tool calls
             if response_message.tool_calls:
-                tool_call   = response_message.tool_calls[0]
-                func_name   = tool_call.function.name
-                tool_result = self._execute_tool(func_name, tool_call.function.arguments)
+                import json
+                from datetime import date
+                from database import add_food_log, add_activity_log
+                
+                tool_call = response_message.tool_calls[0]
+                function_name = tool_call.function.name
+                
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except:
+                    function_args = {}
+                    
+                user_id = self.user_data.get('user_id') if self.user_data else None
+                tool_result_text = "Data not logged."
+                
+                if user_id:
+                    if function_name == "log_food":
+                        add_food_log(
+                            user_id=user_id,
+                            food_name=function_args.get("food_name", "Unknown Food"),
+                            calories=function_args.get("calories", 0),
+                            protein=function_args.get("protein", 0),
+                            carbs=function_args.get("carbs", 0),
+                            fat=function_args.get("fat", 0),
+                            meal_type=function_args.get("meal_type", "Snack"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('food_name')} with {function_args.get('calories', 0):.0f} kcal."
+                    
+                    elif function_name == "log_activity":
+                        add_activity_log(
+                            user_id=user_id,
+                            activity_type=function_args.get("activity_type", "Exercise"),
+                            duration_minutes=function_args.get("duration_minutes", 0),
+                            calories_burned=function_args.get("calories_burned", 0),
+                            intensity=function_args.get("intensity", "Medium"),
+                            log_date=date.today().isoformat()
+                        )
+                        tool_result_text = f"SUCCESS: Logged {function_args.get('activity_type')} burning {function_args.get('calories_burned', 0):.0f} kcal."
 
-                # Append assistant tool call + tool result for follow-up call
+                # Append the assistant's tool call message
                 messages.append({
                     "role": "assistant",
                     "content": None,
-                    "tool_calls": [{
-                        "id": tool_call.id,
-                        "type": "function",
-                        "function": {
-                            "name": func_name,
-                            "arguments": tool_call.function.arguments,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
                         }
-                    }]
+                    ]
                 })
+                
+                # Append the tool result message
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "name": func_name,
-                    "content": tool_result,
+                    "name": function_name,
+                    "content": tool_result_text
                 })
-
-                # ── Second API call for conversational reply ─────────────────
-                second = self.client.chat.completions.create(
-                    model=FOLLOWUP_MODEL,
+                
+                # Make a second API call to get the final conversational response
+                second_response = self.client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
                     messages=messages,
-                    temperature=0.6,
-                    max_tokens=512,
-                    top_p=0.9,
+                    temperature=0.7,
+                    max_tokens=400,
+                    top_p=0.9
                 )
-                final_content = second.choices[0].message.content or ""
-            else:
-                final_content = response_message.content or ""
+                
+                return self._clean_response(second_response.choices[0].message.content)
 
-            # ── Safety net: strip any leaked <function=...> tags ─────────────
-            final_content = self._clean_leaked_functions(final_content)
+            return self._clean_response(response_message.content)
 
-            return final_content if final_content else \
-                "✅ Data berhasil dicatat! Ada lagi yang bisa saya bantu hari ini?"
+        except Exception as e:
+            return self._handle_api_error(e)
 
-        except Exception:
-            # Log to console for debugging but show friendly message to user
-            import traceback
-            traceback.print_exc()
+    def _handle_api_error(self, e):
+        """Convert technical API errors into friendly user-facing messages."""
+        error_str = str(e).lower()
+
+        # Rate limit / quota exceeded
+        if '429' in str(e) or 'rate_limit' in error_str or 'rate limit' in error_str or 'tokens per day' in error_str or 'tpd' in error_str:
+            import re
+            # Try to extract wait time from error message
+            wait_match = re.search(r'try again in (\d+m\d+\.?\d*s|\d+\.?\d*s|\d+ minute)', str(e), re.IGNORECASE)
+            wait_info = f" Coba lagi dalam sekitar **{wait_match.group(1)}**." if wait_match else " Coba lagi dalam beberapa menit."
             return (
-                "Maaf, saya sedang mengalami sedikit gangguan. "
-                "Coba tanyakan lagi dalam beberapa detik ya! 😊"
+                "⏳ **FitBot sedang istirahat sebentar!**\n\n"
+                "AI Coach kita sudah banyak membantu hari ini dan perlu jeda sejenak. "
+                f"{wait_info}\n\n"
+                "💡 Sementara menunggu, kamu bisa:\n"
+                "- Lihat progres di menu **Dashboard**\n"
+                "- Catat makanan di menu **Food Log**\n"
+                "- Catat olahraga di menu **Activity Log**"
             )
 
-    # ── Tool definitions ─────────────────────────────────────────────────────
-    def _build_tools(self):
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "log_food",
-                    "description": (
-                        "Call this ONLY after the user has explicitly confirmed they want to "
-                        "log food (e.g., replied 'Ya', 'Yes', 'Catat', 'Iya', 'Boleh'). "
-                        "Never call automatically on recommendations."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "food_name":  {"type": "string",  "description": "Name of the food"},
-                            "calories":   {"type": "number",  "description": "Total calories (kcal)"},
-                            "protein":    {"type": "number",  "description": "Total protein (g)"},
-                            "carbs":      {"type": "number",  "description": "Total carbohydrates (g)"},
-                            "fat":        {"type": "number",  "description": "Total fat (g)"},
-                            "meal_type":  {
-                                "type": "string",
-                                "enum": ["Breakfast", "Lunch", "Dinner", "Snack"],
-                                "description": "Type of meal"
-                            },
-                        },
-                        "required": ["food_name", "calories", "protein", "carbs", "fat", "meal_type"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "log_activity",
-                    "description": (
-                        "Call this ONLY after the user has explicitly confirmed they want to "
-                        "log an activity (e.g., replied 'Ya', 'Yes', 'Catat'). "
-                        "Never call automatically on workout recommendations."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "activity_type":    {"type": "string", "description": "Name of the exercise"},
-                            "duration_minutes": {"type": "number", "description": "Duration in minutes"},
-                            "calories_burned":  {"type": "number", "description": "Estimated calories burned"},
-                            "intensity":        {
-                                "type": "string",
-                                "enum": ["Low", "Medium", "High"],
-                                "description": "Exercise intensity"
-                            },
-                        },
-                        "required": ["activity_type", "duration_minutes", "calories_burned", "intensity"],
-                    },
-                },
-            },
-        ]
-
-    # ── Tool execution ───────────────────────────────────────────────────────
-    def _execute_tool(self, func_name, arguments_str):
-        """Parse arguments and write to DB. Returns a result string."""
-        from database import add_food_log, add_activity_log
-
-        try:
-            args = json.loads(arguments_str)
-        except (json.JSONDecodeError, TypeError):
-            return "Error: could not parse tool arguments."
-
-        user_id = self.user_data.get('user_id') if self.user_data else None
-        if not user_id:
-            return "Error: no user_id found."
-
-        today = date.today().isoformat()
-
-        if func_name == "log_food":
-            add_food_log(
-                user_id=user_id,
-                food_name=args.get("food_name", "Unknown Food"),
-                calories=float(args.get("calories", 0)),
-                protein=float(args.get("protein", 0)),
-                carbs=float(args.get("carbs", 0)),
-                fat=float(args.get("fat", 0)),
-                meal_type=args.get("meal_type", "Snack"),
-                log_date=today,
-            )
-            return f"SUCCESS: Logged {args.get('food_name')} — {args.get('calories', 0):.0f} kcal."
-
-        elif func_name == "log_activity":
-            add_activity_log(
-                user_id=user_id,
-                activity_type=args.get("activity_type", "Exercise"),
-                duration_minutes=float(args.get("duration_minutes", 0)),
-                calories_burned=float(args.get("calories_burned", 0)),
-                intensity=args.get("intensity", "Medium"),
-                log_date=today,
-            )
+        # Authentication / API key invalid
+        if '401' in str(e) or 'invalid api key' in error_str or 'unauthorized' in error_str or 'authentication' in error_str:
             return (
-                f"SUCCESS: Logged {args.get('activity_type')} "
-                f"— {args.get('calories_burned', 0):.0f} kcal burned."
+                "🔑 **FitBot tidak dapat terhubung saat ini.**\n\n"
+                "Terjadi masalah konfigurasi pada layanan AI. "
+                "Silakan hubungi admin aplikasi untuk membantu."
             )
 
-        return "Unknown function."
+        # Network / connection error
+        if 'timeout' in error_str or 'connection' in error_str or 'network' in error_str or 'unreachable' in error_str:
+            return (
+                "🌐 **Koneksi bermasalah.**\n\n"
+                "FitBot tidak dapat terhubung ke server AI saat ini. "
+                "Pastikan koneksi internet kamu stabil, lalu coba kirim pesan lagi."
+            )
 
-    # ── Leaked function tag cleaner ──────────────────────────────────────────
-    def _clean_leaked_functions(self, text):
-        """
-        Detect and handle any <function=name>{...}</function> that the model
-        accidentally leaks into plain text. Executes the tool silently and
-        removes the tag from the visible response.
-        """
-        if "<function=" not in text:
-            return text
+        # Model overloaded / server error
+        if '503' in str(e) or '500' in str(e) or 'overloaded' in error_str or 'service unavailable' in error_str:
+            return (
+                "🛠️ **Server AI sedang sibuk.**\n\n"
+                "Terlalu banyak pengguna mengakses FitBot sekarang. "
+                "Tunggu sebentar dan coba lagi ya! 🙏"
+            )
 
-        # Collect all matches first (findall, not finditer, so we don't exhaust the generator)
-        pattern = re.compile(r'<function=([^>]+)>(.*?)</function>', re.DOTALL)
-        matches = pattern.findall(text)  # list of (func_name, args_str) tuples
+        # Generic fallback — still friendly, no raw details
+        return (
+            "😅 **FitBot mengalami kendala teknis.**\n\n"
+            "Maaf atas ketidaknyamanannya! Silakan coba kirim pesan lagi. "
+            "Jika masalah terus berlanjut, coba refresh halaman."
+        )
 
-        for func_name, args_str in matches:
-            try:
-                self._execute_tool(func_name.strip(), args_str.strip())
-            except Exception:
-                pass  # silently ignore DB errors for leaked calls
-
-        # Strip all leaked tags from the visible text
-        cleaned = pattern.sub('', text).strip()
+    def _clean_response(self, text):
+        """Remove any raw function call syntax that leaked into the text response."""
+        if text is None:
+            return ""
+        import re
+        # Strip <function=xxx>{...}</function> patterns
+        cleaned = re.sub(r'<function=\w+>.*?</function>', '', text, flags=re.DOTALL)
+        # Strip ```json {...} ``` blocks that look like function args
+        cleaned = re.sub(r'```json\s*\{[^`]*\}\s*```', '', cleaned, flags=re.DOTALL)
+        cleaned = cleaned.strip()
+        # If after cleaning the response is empty, return a generic confirmation
+        if not cleaned:
+            cleaned = "✅ Sudah dicatat ke log Anda!"
         return cleaned
 
-    # ── System prompt ────────────────────────────────────────────────────────
     def _build_system_prompt(self):
+        """Build a rich system prompt with user profile and coaching instructions."""
         if not self.user_data:
             return self._get_default_system_prompt()
 
-        h = self.user_data.get('height_cm', 170) / 100
-        w = self.user_data.get('weight_kg', 70)
-        bmi = w / (h ** 2) if h > 0 else 22
-        bmi_cat = (
-            "Underweight" if bmi < 18.5 else
-            "Normal"      if bmi < 25   else
-            "Overweight"  if bmi < 30   else
-            "Obese"
-        )
+        # Calculate BMI and get category
+        height_m = self.user_data.get('height_cm', 170) / 100
+        weight = self.user_data.get('weight_kg', 70)
+        bmi = weight / (height_m ** 2) if height_m > 0 else 22
+        if bmi < 18.5:
+            bmi_cat = "Underweight"
+        elif bmi < 25:
+            bmi_cat = "Normal"
+        elif bmi < 30:
+            bmi_cat = "Overweight"
+        else:
+            bmi_cat = "Obese"
 
-        return f"""You are an expert, empathetic fitness & nutrition coach named "FitBot".
+        prompt = f"""You are an expert, empathetic, and highly knowledgeable fitness & nutrition coach named "FitBot". 
+Your goal is to help users achieve their health goals with practical, evidence-based advice.
 
 USER PROFILE:
 - Name: {self.user_data.get('name', 'User')}
@@ -278,145 +290,177 @@ USER PROFILE:
 - Daily Calorie Target: {self.user_data.get('daily_target_calories', 0):.0f} kcal
 - Fitness Goal: {self.user_data.get('fitness_goal', 'Maintain Weight')}
 
-RESPONSE RULES:
-1. Be specific and actionable, referencing the user's actual numbers.
-2. Keep answers concise: 3-5 sentences + bullet points when helpful.
-3. Respond in the user's language (Indonesian or English).
-4. Use emojis occasionally (💪 🥗 🏃 etc.) to keep it friendly.
-5. If asked off-topic questions, politely redirect to fitness/nutrition.
-6. LOG DATA RULE (STRICT): Before calling log_food or log_activity, ALWAYS ask
-   the user for confirmation first (e.g., "Mau saya catat ke log kamu?").
-   Only invoke the tool AFTER the user explicitly confirms (Ya/Yes/Catat/Iya/Boleh).
-   NEVER call the tool automatically on a first mention or when giving advice.
+INSTRUCTIONS FOR YOUR RESPONSES:
+1. **Be extremely helpful and specific** – Give actionable advice (e.g., "Eat 150g chicken breast with quinoa" not just "eat protein").
+2. **Use the user's profile** – Reference their BMI, target calories, and goal.
+3. **Be encouraging but honest** – If they ask something unrealistic, explain gently.
+4. **Keep responses concise but rich** – Aim for 3-5 sentences + bullet points if needed.
+5. **Respond in the user's language** – If they write in Indonesian, reply in Indonesian. If English, reply in English.
+6. **Include small motivational tips** when relevant.
+7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
+8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
+9. **Log data confirmation (STRICT RULE):** Before invoking the `log_food` or `log_activity` tools, you MUST always ask the user for confirmation in text first (e.g., "Apakah Anda ingin saya mencatat [Makanan/Aktivitas] ini ke log Anda?"). ONLY call the tool if the user explicitly confirms (e.g., replies "Ya", "Yes", "Catat", "Boleh", "Tolong", or similar in the next turn). Never call the tool automatically when providing recommendations, and never call the tool without asking the user first.
+10. **NEVER write raw function call syntax in your text responses** – NEVER output text like `<function=log_food>{...}</function>` or `<function=log_activity>{...}</function>`. If you need to log data, use the actual tool call mechanism. Writing function syntax as plain text is strictly forbidden and will break the application.
 
-TONE: Friendly, professional, and motivating."""
+TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
+
+Remember: The user is a real person trying to improve their health. Make every response count!"""
+
+        return prompt
 
     def _get_default_system_prompt(self):
-        return """You are FitBot, a friendly fitness and nutrition coach.
-Provide concise, actionable advice on exercise, diet, weight loss, and healthy habits.
+        return """You are FitBot, a friendly fitness and nutrition coach. 
+Provide practical, science-based advice on exercise, diet, weight loss, muscle gain, and healthy habits.
+Keep responses concise (under 200 words) and actionable. Use emojis to be engaging.
 Respond in the same language as the user (Indonesian or English).
-Use emojis to be engaging.
 
-LOG DATA RULE: Before calling log_food or log_activity, ALWAYS ask for user confirmation first.
-Only invoke the tool AFTER the user explicitly agrees (Ya/Yes/Catat/Iya/Boleh)."""
+CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
 
-    # ── Rule-based fallback (no API) ─────────────────────────────────────────
+DATABASE ACCESS: You have direct database access via the `log_food` and `log_activity` tools. Before calling any tool, you MUST always ask the user for text confirmation first. Only call the tool if they explicitly agree (e.g. reply 'Ya/Yes/Catat'). Do NOT call the tool on recommendations or without asking."""
+
     def _get_rule_based_response(self, user_message, context):
+        """Enhanced fallback responses when API is not available."""
         msg = user_message.lower().strip()
-
-        if any(w in msg for w in ['lose weight', 'weight loss', 'fat loss', 'turun berat', 'diet turun']):
+        
+        # --- Weight loss ---
+        if any(w in msg for w in ['lose weight', 'weight loss', 'fat loss', 'turunan berat badan', 'diet turun']):
             if self.user_data:
                 deficit = self.user_data.get('tdee', 2500) - self.user_data.get('daily_target_calories', 2000)
-                return f"""📉 **Strategi Penurunan Berat Badan**
+                return f"""📉 **Weight Loss Strategy** (based on your profile)
 
-TDEE kamu {self.user_data.get('tdee', 0):.0f} kcal, target harian {self.user_data.get('daily_target_calories', 0):.0f} kcal — defisit {deficit:.0f} kcal/hari.
+Your TDEE is {self.user_data.get('tdee', 0):.0f} kcal, and your target is {self.user_data.get('daily_target_calories', 0):.0f} kcal — a deficit of {deficit:.0f} kcal/day.
 
-✅ **Langkah utama:**
-- Konsumsi {self.user_data.get('daily_target_calories', 0):.0f} kcal/hari
-- Protein {self.user_data.get('weight_kg', 70)*1.8:.0f}g/hari (1.8g/kg BB)
-- Latihan beban 3x/minggu + kardio 150 menit/minggu
-- Tidur 7–8 jam
+✅ **Key actions:**
+- Eat {self.user_data.get('daily_target_calories', 0):.0f} kcal daily
+- Prioritize protein (1.6-2.2g per kg body weight = {self.user_data.get('weight_kg', 70)*1.8:.0f}g/day)
+- Strength train 3x/week + 150 min cardio weekly
+- Sleep 7-8 hours
 
-Mau contoh menu makan atau rencana latihan?"""
-            return "📉 Buat defisit 300–500 kcal/hari, perbanyak protein & serat, jalan kaki 8.000+ langkah, dan latihan beban 2–3x/minggu. Lengkapi profil agar saya bisa hitung target spesifik kamu!"
+Need a sample meal plan or workout routine?"""
+            else:
+                return """📉 **Weight Loss Basics**
+- Create a 300-500 calorie deficit daily
+- Eat more protein and fiber
+- Walk 8,000-10,000 steps/day
+- Strength train 2-3x/week
+Would you like me to calculate your specific calorie target? Please complete your profile first."""
 
+        # --- Muscle gain ---
         elif any(w in msg for w in ['gain muscle', 'build muscle', 'muscle gain', 'tambah otot', 'bulk']):
             if self.user_data:
                 surplus = self.user_data.get('daily_target_calories', 2500) - self.user_data.get('tdee', 2300)
-                return f"""💪 **Rencana Muscle Gain**
+                return f"""💪 **Muscle Gain Plan** (personalized)
 
-Maintenance kamu {self.user_data.get('tdee', 0):.0f} kcal. Surplus target: {surplus:.0f} kcal/hari.
+Your maintenance is {self.user_data.get('tdee', 0):.0f} kcal. Target surplus: {surplus:.0f} kcal/day.
 
-✅ **Essensial:**
-- Konsumsi {self.user_data.get('daily_target_calories', 0):.0f} kcal (surplus)
-- Protein: {self.user_data.get('weight_kg', 70)*1.8:.0f}g/hari
-- Progressive overload (tambah beban/rep setiap minggu)
-- Compound lift: squat, deadlift, bench press, row
-- Tidur 7–9 jam
+✅ **Essentials:**
+- Eat {self.user_data.get('daily_target_calories', 0):.0f} kcal (surplus)
+- Protein: {self.user_data.get('weight_kg', 70)*1.8:.0f}g/day
+- Progressive overload (add weight/reps weekly)
+- Compound lifts: squats, deadlifts, bench press, rows
+- Sleep 7-9h for recovery
 
-Mau rencana latihan 3 hari full-body?"""
-            return "💪 Untuk membangun otot: makan 200–300 kalori di atas maintenance, latihan beban 3–4x/minggu, protein 1.6–2.2g/kg BB. Lengkapi profil agar saya bisa hitung angka spesifik!"
+Want a sample 3-day full-body routine?"""
+            else:
+                return "💪 To gain muscle, eat 200-300 calories above maintenance, train heavy 3-4x/week, and eat 1.6-2.2g protein/kg. Want me to calculate your numbers? Complete your profile first."
 
+        # --- Calorie tracking help ---
         elif any(w in msg for w in ['calorie', 'calories', 'kalori', 'how many calories']):
-            if context and context.get('calories_in') is not None and self.user_data:
-                remaining = self.user_data.get('daily_target_calories', 2000) - context['calories_in']
-                return f"""🍽️ **Status Kalori Hari Ini**
-- Dikonsumsi: {context['calories_in']:.0f} kcal
-- Dibakar: {context['calories_out']:.0f} kcal
+            if context and context.get('calories_in') is not None:
+                remaining = (self.user_data.get('daily_target_calories', 2000) - context['calories_in']) if self.user_data else 0
+                return f"""🍽️ **Today's Calorie Status**
+- Consumed: {context['calories_in']:.0f} kcal
+- Burned: {context['calories_out']:.0f} kcal
 - Net: {context['calories_in'] - context['calories_out']:.0f} kcal
-- Target: {self.user_data.get('daily_target_calories', 'N/A')} kcal
-- Sisa: {remaining:.0f} kcal
+- Target: {self.user_data.get('daily_target_calories', 'N/A') if self.user_data else 'N/A'} kcal
+- Remaining: {remaining:.0f} kcal
 
-💡 Masih lapar? Pilih makanan tinggi volume rendah kalori seperti sayuran, sup, atau Greek yogurt."""
-            return "Untuk manajemen kalori: catat semua yang dimakan, prioritaskan makanan utuh, dan log makanan di aplikasi ini agar saya bisa kasih saran spesifik!"
+💡 Tip: If you're hungry, choose high-volume low-calorie foods like vegetables, broth-based soups, or Greek yogurt."""
+            else:
+                return "To manage calories: track everything, use a food scale, and prioritize whole foods. Log your meals in the app and I can give specific advice!"
 
-        elif any(w in msg for w in ['workout', 'exercise', 'training', 'olahraga', 'gym', 'latihan']):
-            goal = self.user_data.get('fitness_goal', '') if self.user_data else ''
-            if goal == 'Weight Loss':
-                return "🏋️ **Latihan untuk Turun Berat**\n- 3x/minggu full-body strength (30–40 mnt)\n- 150 mnt kardio sedang (jalan cepat, sepeda)\n- 1x HIIT per minggu\n- Target langkah harian: 8.000+\n\nMau contoh rutinitas spesifik?"
-            elif goal == 'Muscle Gain':
-                return "🏋️ **Latihan untuk Muscle Gain**\n- Push/Pull/Legs atau Upper/Lower split 4–5x/minggu\n- Fokus compound lift (squat, bench, deadlift, row)\n- 6–12 rep, 3–4 set, progressive overload\n- Istirahat 60–90 detik antar set\n\nMau rencana mingguan spesifik?"
-            return "🏃 **Rutinitas Seimbang**\n- 2–3x latihan beban\n- 2–3x kardio (lari, sepeda, renang)\n- 1–2x active recovery (yoga, jalan)\n- Stretching setiap hari\n\nCeritakan peralatan yang kamu punya dan saya design plannya!"
+        # --- Workout recommendations ---
+        elif any(w in msg for w in ['workout', 'exercise', 'training', 'olahraga', 'gym']):
+            if self.user_data and self.user_data.get('fitness_goal') == 'Weight Loss':
+                return "🏋️ **Workout for Weight Loss**\n- 3x/week full-body strength training (30-40 min)\n- 150 min moderate cardio (brisk walking, cycling)\n- HIIT once a week for metabolic boost\n- Daily step goal: 8,000+\n\nNeed a sample routine?"
+            elif self.user_data and self.user_data.get('fitness_goal') == 'Muscle Gain':
+                return "🏋️ **Workout for Muscle Gain**\n- Push/Pull/Legs or Upper/Lower split 4-5x/week\n- Focus on compound lifts (squat, bench, deadlift, row)\n- 6-12 reps, 3-4 sets, progressive overload\n- Rest 60-90 seconds between sets\n\nWant a specific weekly plan?"
+            else:
+                return "🏃 **Balanced Workout Routine**\n- 2-3x strength training\n- 2-3x cardio (running, cycling, swimming)\n- 1-2x active recovery (yoga, walking)\n- Stretch daily\n\nTell me your equipment and I'll design a plan!"
 
-        elif any(w in msg for w in ['meal', 'food', 'diet', 'eat', 'makan', 'menu', 'makanan']):
+        # --- Meal / food advice ---
+        elif any(w in msg for w in ['meal', 'food', 'diet', 'eat', 'makan', 'menu']):
             if self.user_data and self.user_data.get('daily_target_calories'):
                 target = self.user_data.get('daily_target_calories')
-                return f"""🥗 **Framework Makan Sehat** (~{target:.0f} kcal/hari)
+                return f"""🥗 **Healthy Meal Framework** (~{target} kcal/day)
 
-Sarapan (25%): Oats + buah + protein (~{target*0.25:.0f} kcal)
-Makan siang (30%): Ayam/ikan + nasi merah + sayur (~{target*0.3:.0f} kcal)
-Snack (15%): Greek yogurt atau buah + kacang (~{target*0.15:.0f} kcal)
-Makan malam (30%): Protein + ubi/kentang + brokoli (~{target*0.3:.0f} kcal)
+Breakfast (25%): Oats with berries & protein powder (~{target*0.25:.0f} kcal)
+Lunch (30%): Grilled chicken, quinoa, roasted veggies (~{target*0.3:.0f} kcal)
+Snack (15%): Greek yogurt or apple with peanut butter (~{target*0.15:.0f} kcal)
+Dinner (30%): Salmon, sweet potato, steamed broccoli (~{target*0.3:.0f} kcal)
 
-💧 Minum 2–3L air. Sesuaikan porsi dengan rasa lapar.
+💧 Drink 2-3L water. Adjust portions based on hunger.
 
-Mau opsi vegetarian atau menu spesifik masakan Indonesia?"""
-            return "Piring sehat: 1/2 sayuran, 1/4 protein lean, 1/4 karbohidrat kompleks. Tambahkan lemak sehat. Log makananmu di app ini untuk saran yang lebih personal!"
+Want vegetarian or specific cuisine options?"""
+            else:
+                return "A healthy plate: 1/2 veggies, 1/4 lean protein, 1/4 complex carbs. Add healthy fats. Log your meals to get personalized feedback!"
 
-        elif any(w in msg for w in ['motivasi', 'motivation', 'motivate', 'give up', 'nyerah', 'stuck']):
-            return """🌟 **Kamu pasti bisa!**
+        # --- Motivation ---
+        elif any(w in msg for w in ['motivation', 'motivate', 'give up', 'stuck', 'demotivated']):
+            return """🌟 **You've got this!** 
+Every small step counts. Remember:
+- Progress, not perfection
+- Missed a workout? Just get back tomorrow
+- You're building habits that last a lifetime
+- Think of how far you've come
 
-Ingat: setiap langkah kecil itu berarti.
-- Progres, bukan kesempurnaan
-- Miss workout hari ini? Mulai lagi besok
-- Kamu sedang membangun kebiasaan seumur hidup 💪
+What's ONE thing you can do today to move forward? 💪"""
 
-Satu hal apa yang bisa kamu lakukan hari ini untuk maju?"""
+        # --- Sleep/recovery ---
+        elif any(w in msg for w in ['sleep', 'rest', 'recovery', 'tidur']):
+            return """😴 **Sleep & Recovery Tips**
+- Aim for 7-9 hours quality sleep
+- Keep consistent bedtime/wake time
+- No screens 30 min before bed
+- Active recovery: light walk, stretch, foam roll
+- Rest days = muscle growth days
 
-        elif any(w in msg for w in ['sleep', 'rest', 'recovery', 'tidur', 'istirahat']):
-            return """😴 **Tips Tidur & Pemulihan**
-- Targetkan 7–9 jam tidur berkualitas
-- Jam tidur dan bangun konsisten
-- Hindari layar 30 menit sebelum tidur
-- Active recovery: jalan santai, stretching, foam roll
-- Hari istirahat = hari pertumbuhan otot!
+Need a bedtime routine suggestion?"""
 
-Mau rutinitas sebelum tidur yang efektif?"""
-
-        elif any(w in msg for w in ['hello', 'hi', 'hey', 'halo', 'hai', 'pagi', 'siang', 'malam']):
+        # --- Greeting ---
+        elif any(w in msg for w in ['hello', 'hi', 'hey', 'halo', 'hai', 'good morning', 'good afternoon']):
             hour = datetime.now().hour
-            greeting = "Selamat pagi! ☀️" if hour < 12 else ("Selamat siang! 🌤️" if hour < 18 else "Selamat malam! 🌙")
-            return f"""{greeting} Saya FitBot, pelatih kebugaran dan nutrisi pribadimu!
+            if hour < 12:
+                greeting = "Good morning! ☀️"
+            elif hour < 18:
+                greeting = "Good afternoon! 🌤️"
+            else:
+                greeting = "Good evening! 🌙"
+            
+            return f"""{greeting} I'm FitBot, your personal fitness coach!
 
-Saya bisa bantu:
-• 🥗 Nutrisi & perencanaan makan
-• 💪 Program latihan
-• 🔥 Hitung kalori & makro
-• 📈 Motivasi & progres
-• 😴 Tidur & pemulihan
+I can help with:
+• 🥗 Nutrition & meal planning
+• 💪 Workout routines (any equipment)
+• 🔥 Calorie tracking & math
+• 📈 Progress motivation
+• 😴 Sleep & recovery
 
-Apa yang ingin kamu fokuskan hari ini?"""
+What would you like to focus on today? Just ask!"""
 
-        return """Hei! Saya di sini untuk mendukung perjalanan kebugaranmu 😊
+        # --- Default fallback ---
+        else:
+            return f"""Thanks for reaching out! I'm here to support your fitness journey.
 
-Coba tanyakan:
-- "Bagaimana cara turun berat badan?"
-- "Makanan terbaik untuk muscle gain?"
-- "Berikan latihan di rumah"
-- "Berapa kalori yang harus saya makan?"
-- "Saya butuh motivasi!"
+You can ask me about:
+- "How do I lose weight?"
+- "Best foods for muscle gain"
+- "Give me a home workout"
+- "How many calories should I eat?"
+- "I feel demotivated, help!"
 
-Ada pertanyaan spesifik?"""
+What specific question do you have? 😊"""
 
+    # Optional: method to clear conversation history
     def clear_history(self):
         self.conversation_history = []
