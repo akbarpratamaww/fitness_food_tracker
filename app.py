@@ -517,9 +517,11 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
 # Recover session from cookie.
-# Check dedicated logout-flag cookie first — this survives browser reloads and
-# cannot be cleared by the user editing the URL bar.
-_logout_flag = controller.get('user_logout')
+# Two-layer guard against stale cookie auto-login:
+#   1. session_state.logged_out  → blocks recovery on the IMMEDIATE rerun after logout
+#                                  (cookie write is async and may not be ready yet)
+#   2. user_logout cookie        → blocks recovery on BROWSER RELOAD (session_state is gone)
+_logout_flag = st.session_state.get('logged_out', False) or controller.get('user_logout')
 if st.session_state.user_id is None and not _logout_flag:
     try:
         token = controller.get('user_session')
@@ -871,13 +873,17 @@ if menu == "Dashboard":
             st.markdown(f"### Welcome back, {user['name']}! 👋")
         with dash_col2:
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                # Set a dedicated logout-flag cookie (persists in browser, survives reload)
-                # This blocks session recovery even if user_session cookie still lingers.
-                controller.set('user_logout', '1', max_age=86400)  # 24 hour logout flag
-                controller.set('user_session', '', max_age=0)      # attempt to clear session cookie
-                # Clear all Streamlit session state
-                for key in list(st.session_state.keys()):
+                # Set the persistent logout cookie (for browser reloads)
+                controller.set('user_logout', '1', max_age=86400)   # 24h
+                controller.set('user_session', '', max_age=0)        # attempt to clear
+                # Clear user-specific session state but KEEP logged_out flag
+                # so the IMMEDIATE st.rerun() below is also protected
+                # (the cookie write is async and may not be ready in time)
+                keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
+                for key in keys_to_delete:
                     del st.session_state[key]
+                st.session_state.logged_out = True   # synchronous guard for next rerun
+                st.session_state.user_id = None
                 st.query_params.clear()
                 st.rerun()
         
