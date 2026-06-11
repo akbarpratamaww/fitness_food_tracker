@@ -654,7 +654,7 @@ if st.session_state.user_id is None:
                             st.session_state.user = user_row.to_dict()
                             token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                             controller.set('user_session', token, max_age=2592000)  # 30 days
-                            controller.set('user_logout', '', max_age=0)  # clear logout flag
+                            controller.set('user_logout', '', expires=datetime(1970, 1, 1), max_age=0)  # clear logout flag
                             st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
@@ -835,7 +835,7 @@ if st.session_state.user_id is None:
                                 st.session_state.user = user_row.to_dict()
                                 token = f"{new_uid}:{sign_user_id(new_uid)}"
                                 controller.set('user_session', token, max_age=2592000)  # 30 days
-                                controller.set('user_logout', '', max_age=0)  # clear logout flag
+                                controller.set('user_logout', '', expires=datetime(1970, 1, 1), max_age=0)  # clear logout flag
                                 st.query_params.clear()
                                 st.session_state.active_menu = "Dashboard"
                                 st.session_state.chatbot = None
@@ -919,7 +919,7 @@ if menu == "Dashboard":
             if st.button("Logout", key="dash_logout_btn", use_container_width=True):
                 # Set the persistent logout cookie (for browser reloads)
                 controller.set('user_logout', '1', max_age=86400)   # 24h
-                controller.set('user_session', '', max_age=0)        # attempt to clear
+                controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)        # clear session cookie
                 # Clear user-specific session state but KEEP logged_out flag
                 # so the IMMEDIATE st.rerun() below is also protected
                 # (the cookie write is async and may not be ready in time)
@@ -929,7 +929,7 @@ if menu == "Dashboard":
                 st.session_state.logged_out = True   # synchronous guard for next rerun
                 st.session_state.user_id = None
                 st.query_params.clear()
-                time.sleep(0.8)  # give browser time to write cookies
+                time.sleep(1.0)  # give browser time to write cookies
                 st.rerun()
         
         # Quick terminology guide for laypeople
