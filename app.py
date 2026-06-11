@@ -27,8 +27,8 @@ st.markdown("""
     
     html, body, [data-testid="stAppViewContainer"], .main {
         font-family: 'Poppins', sans-serif;
-        background-color: #08090C !important;
-        color: #E2E8F0 !important;
+        background-color: var(--background-color) !important;
+        color: var(--text-color) !important;
     }
     
     .main-header {
@@ -44,11 +44,11 @@ st.markdown("""
     
     /* Modern Glassmorphic Metric Cards */
     div[data-testid="metric-container"] {
-        background: #12131A !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 18px !important;
         padding: 1.2rem 1.5rem !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1) !important;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
     
@@ -56,21 +56,21 @@ st.markdown("""
         transform: translateY(-5px) !important;
         border-color: rgba(255, 87, 34, 0.4) !important;
         box-shadow: 0 12px 40px rgba(255, 87, 34, 0.15) !important;
-        background: #161822 !important;
     }
-
+ 
     div[data-testid="stMetricLabel"] {
-        color: #8E8E93 !important;
+        color: var(--text-color) !important;
+        opacity: 0.7;
         font-weight: 500 !important;
         font-size: 0.9rem !important;
     }
-
+ 
     div[data-testid="stMetricValue"] {
-        color: #FFFFFF !important;
+        color: var(--text-color) !important;
         font-weight: 700 !important;
         font-size: 1.8rem !important;
     }
-
+ 
     div[data-testid="stMetricDelta"] {
         font-weight: 600 !important;
     }
@@ -81,8 +81,8 @@ st.markdown("""
         padding: 1.2rem 1.5rem;
         margin: 1rem 0;
         border-left: 5px solid;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        background-color: #12131A;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        background-color: var(--secondary-background-color);
     }
     
     .info-box {
@@ -128,20 +128,21 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(255, 46, 147, 0.45) !important;
         filter: brightness(1.1) !important;
     }
-
+ 
     .main div.stButton > button:active {
         transform: translateY(1px) !important;
     }
     
     /* Sidebar styling and custom navigation menu */
     section[data-testid="stSidebar"] {
-        background-color: #0A0B10 !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+        background-color: var(--secondary-background-color) !important;
+        border-right: 1px solid rgba(128, 128, 128, 0.1) !important;
     }
-
+ 
     section[data-testid="stSidebar"] div.stButton > button {
         background: transparent !important;
-        color: #A0AEC0 !important;
+        color: var(--text-color) !important;
+        opacity: 0.8;
         border: none !important;
         border-radius: 12px !important;
         text-align: left !important;
@@ -159,13 +160,14 @@ st.markdown("""
         background: rgba(255, 87, 34, 0.08) !important;
         color: #FF5722 !important;
         transform: translateX(4px) !important;
+        opacity: 1;
     }
     
     /* Input & Control overrides */
     div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stNumberInput"] input {
-        background-color: #12131A !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background-color: var(--secondary-background-color) !important;
+        color: var(--text-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
         border-radius: 12px !important;
         padding: 0.7rem 1rem !important;
         transition: all 0.2s ease !important;
@@ -175,17 +177,17 @@ st.markdown("""
         border-color: #FF5722 !important;
         box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.2) !important;
     }
-
+ 
     div[data-testid="stSelectbox"] div[data-baseweb="select"] {
-        background-color: #12131A !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background-color: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
         border-radius: 12px !important;
     }
     
     div[data-testid="stSelectbox"] div[role="button"] {
-        color: #FFFFFF !important;
+        color: var(--text-color) !important;
     }
-
+ 
     div[data-testid="stSlider"] [role="slider"] {
         background-color: #FF5722 !important;
     }
@@ -193,42 +195,44 @@ st.markdown("""
     div[data-testid="stSlider"] div[data-testid="stSliderTrack"] > div {
         background-color: #FF5722 !important;
     }
-
+ 
     /* Custom styled Premium Tabs */
     button[data-baseweb="tab"] {
         background-color: transparent !important;
-        color: #8E8E93 !important;
+        color: var(--text-color) !important;
+        opacity: 0.7;
         border-bottom: 2px solid transparent !important;
         font-weight: 600 !important;
         padding: 0.8rem 1.8rem !important;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
         font-size: 1rem !important;
     }
-
+ 
     button[data-baseweb="tab"][aria-selected="true"] {
         color: #FF5722 !important;
         border-bottom-color: #FF5722 !important;
+        opacity: 1;
     }
-
+ 
     /* Premium Expander Design */
     div[data-testid="stExpander"] {
-        background: #12131A !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 14px !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
     }
     
     div[data-testid="stExpander"] details {
         border: none !important;
     }
-
+ 
     /* Hide Streamlit default styling elements & Sidebar completely */
     header[data-testid="stHeader"] {
         background: transparent !important;
     }
-    div[data-testid="stToolbar"] {
+   /* div[data-testid="stToolbar"] {
         display: none !important;
-    }
+    } */
     footer {
         display: none !important;
     }
@@ -238,8 +242,8 @@ st.markdown("""
     
     /* ── Navigation Radio Navbar ── */
     div[data-testid="stRadio"] {
-        background: #12131A;
-        border: 1px solid rgba(255,255,255,0.06);
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1);
         border-radius: 16px;
         padding: 0.5rem 0.8rem;
         margin-bottom: 1.5rem;
@@ -273,18 +277,22 @@ st.markdown("""
     }
     /* Option text colour */
     div[data-testid="stRadio"] label[data-baseweb="radio"] span {
-        color: #A0AEC0 !important;
+        color: var(--text-color) !important;
+        opacity: 0.8;
         font-size: 0.85rem !important;
         font-weight: 500 !important;
     }
     /* Active / selected option */
-    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] {
+    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"],
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
         background: rgba(255, 87, 34, 0.15) !important;
         border-color: rgba(255, 87, 34, 0.35) !important;
     }
-    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] span {
+    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] span,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) span {
         color: #FF5722 !important;
         font-weight: 700 !important;
+        opacity: 1 !important;
     }
     @media (max-width: 768px) {
         div[data-testid="stRadio"] label[data-baseweb="radio"] {
@@ -292,11 +300,11 @@ st.markdown("""
             padding: 0.32rem 0.55rem !important;
         }
     }
-
-
+ 
+ 
     /* Premium dataframes styling */
     div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 12px !important;
         overflow: hidden !important;
     }
@@ -320,11 +328,11 @@ st.markdown("""
     .auth-container {
         max-width: 480px;
         margin: 3rem auto;
-        background: #12131A;
-        border: 1px solid rgba(255,255,255,0.07);
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.15);
         border-radius: 24px;
         padding: 2.5rem 2.5rem;
-        box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        box-shadow: 0 24px 80px rgba(0,0,0,0.15);
     }
     .auth-logo {
         text-align: center;
@@ -339,13 +347,14 @@ st.markdown("""
         margin: 0;
     }
     .auth-logo p {
-        color: #8E8E93;
+        color: var(--text-color);
+        opacity: 0.7;
         font-size: 0.9rem;
         margin-top: 0.3rem;
     }
     .auth-divider {
         border: none;
-        border-top: 1px solid rgba(255,255,255,0.07);
+        border-top: 1px solid rgba(128, 128, 128, 0.15);
         margin: 1.2rem 0;
     }
     
@@ -353,11 +362,11 @@ st.markdown("""
     div[data-baseweb="tab-panel"] div[data-testid="stVerticalBlockBorderWrapper"] {
         max-width: 480px;
         margin: 1rem auto !important;
-        background: #12131A !important;
-        border: 1px solid rgba(255,255,255,0.07) !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
         border-radius: 24px !important;
         padding: 2.2rem !important;
-        box-shadow: 0 24px 80px rgba(0,0,0,0.5) !important;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.15) !important;
     }
     
     .progress-bar-container {
@@ -370,7 +379,7 @@ st.markdown("""
     .progress-segment {
         flex: 1;
         height: 6px;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(128, 128, 128, 0.2);
         border-radius: 3px;
         transition: all 0.3s ease;
     }
@@ -383,13 +392,14 @@ st.markdown("""
     .wizard-title {
         font-size: 1.6rem;
         font-weight: 700;
-        color: #FFFFFF;
+        color: var(--text-color);
         margin-bottom: 0.5rem;
         line-height: 1.3;
     }
     
     .wizard-subtitle {
-        color: #8E8E93;
+        color: var(--text-color);
+        opacity: 0.7;
         font-size: 0.95rem;
         margin-bottom: 1.5rem;
     }
@@ -415,7 +425,7 @@ st.markdown("""
         padding: 8px !important;
         box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4) !important;
         transition: all 0.3s ease !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        border: 1px solid rgba(128,128,128,0.2) !important;
         width: 42px !important;
         height: 42px !important;
         display: flex !important;
@@ -431,7 +441,7 @@ st.markdown("""
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }
-
+ 
 </style>
 """, unsafe_allow_html=True)
 
