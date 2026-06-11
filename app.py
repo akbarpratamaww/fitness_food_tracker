@@ -391,6 +391,11 @@ st.markdown("""
         background: rgba(239, 68, 68, 0.12) !important;
         border-color: rgba(239, 68, 68, 0.55) !important;
     }
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"])[aria-checked="true"],
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]):has(input:checked) {
+        background: rgba(239, 68, 68, 0.18) !important;
+        border-color: rgba(239, 68, 68, 0.55) !important;
+    }
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) span,
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) p,
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input[value="Logout"]) div,
@@ -900,20 +905,14 @@ selected_menu = st.radio(
     label_visibility="collapsed"
 )
 
-# Handle logout immediately if selected from navbar
-if selected_menu == "Logout":
-    controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)        # clear session cookie
-    keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
-    for key in keys_to_delete:
-        del st.session_state[key]
-    st.session_state.logged_out = True   # synchronous guard for next rerun
-    st.session_state.user_id = None
-    st.query_params.clear()
-    time.sleep(1.0)  # give browser time to write cookies
-    st.rerun()
+# Track previous menu for logout cancellation
+if 'previous_menu' not in st.session_state:
+    st.session_state.previous_menu = "Dashboard"
 
 # Only update active_menu if user explicitly changed the radio (not during form submits)
 if selected_menu != st.session_state.active_menu:
+    if st.session_state.active_menu != "Logout":
+        st.session_state.previous_menu = st.session_state.active_menu
     st.session_state.active_menu = selected_menu
     st.rerun()
 
@@ -2309,6 +2308,52 @@ elif menu == "About":
             </p>
         </div>
         """, unsafe_allow_html=True)
+
+elif menu == "Logout":
+    st.markdown('<div class="main-header">Logout</div>', unsafe_allow_html=True)
+    
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    with col_center:
+        st.markdown("""
+        <style>
+            /* Style the confirm button to be red */
+            div[data-testid="column"]:first-child button {
+                background-color: #EF4444 !important;
+                color: white !important;
+                border-color: #EF4444 !important;
+            }
+            div[data-testid="column"]:first-child button:hover {
+                background-color: #DC2626 !important;
+                border-color: #DC2626 !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("""
+            <div style="text-align: center; padding: 1rem 0;">
+                <span style="font-size: 3rem;">⚠️</span>
+                <h3 style="margin-top: 1rem; margin-bottom: 0.5rem; color: #FF6B6B;">Konfirmasi Keluar</h3>
+                <p style="color: #E0E0E0; font-size: 1rem;">Apakah Anda yakin ingin keluar dari aplikasi Smart Fitness & Food Tracker?</p>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("---")
+            col_confirm, col_cancel = st.columns(2)
+            with col_confirm:
+                if st.button("Ya, Keluar", type="primary", use_container_width=True, key="confirm_logout_btn"):
+                    # Clear session
+                    controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
+                    keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
+                    for key in keys_to_delete:
+                        del st.session_state[key]
+                    st.session_state.logged_out = True
+                    st.session_state.user_id = None
+                    st.query_params.clear()
+                    time.sleep(0.5)
+                    st.rerun()
+            with col_cancel:
+                if st.button("Batal", use_container_width=True, key="cancel_logout_btn"):
+                    st.session_state.active_menu = st.session_state.previous_menu
+                    st.rerun()
 
 if __name__ == "__main__":
     pass
