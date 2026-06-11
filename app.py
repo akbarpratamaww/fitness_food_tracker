@@ -1883,7 +1883,7 @@ elif menu == "Fitness Level Classifier":
                     st.error(f"Error saat prediksi: {str(e)}")
     
     else:
-        st.error("Gagal memuat model. Pastikan file dataset 'bodyPerformance.csv' tersedia di folder 'data/'.")
+        st.error("Gagal memuat model. Silakan hubungi administrator aplikasi.")
 
 elif menu == "AI Chatbot":
     st.markdown('<div class="main-header">AI Fitness Coach</div>', unsafe_allow_html=True)
