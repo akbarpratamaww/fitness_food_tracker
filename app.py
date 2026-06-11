@@ -23,59 +23,425 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    html, body, [data-testid="stAppViewContainer"], .main {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--background-color) !important;
+        color: var(--text-color) !important;
+    }
+    
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-size: 2.8rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #FF5722 0%, #FF2E93 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 2rem;
+        letter-spacing: -0.5px;
     }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        padding: 1rem;
-        color: white;
+    
+    /* Modern Glassmorphic Metric Cards */
+    div[data-testid="metric-container"] {
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
+        border-radius: 18px !important;
+        padding: 1.2rem 1.5rem !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
+    
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-5px) !important;
+        border-color: rgba(255, 87, 34, 0.4) !important;
+        box-shadow: 0 12px 40px rgba(255, 87, 34, 0.15) !important;
+    }
+ 
+    div[data-testid="stMetricLabel"] {
+        color: var(--text-color) !important;
+        opacity: 0.7;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+    }
+ 
+    div[data-testid="stMetricValue"] {
+        color: var(--text-color) !important;
+        font-weight: 700 !important;
+        font-size: 1.8rem !important;
+    }
+ 
+    div[data-testid="stMetricDelta"] {
+        font-weight: 600 !important;
+    }
+    
+    /* Custom Info / Alert Boxes */
+    .info-box, .success-box, .warning-box, .danger-box {
+        border-radius: 14px;
+        padding: 1.2rem 1.5rem;
+        margin: 1rem 0;
+        border-left: 5px solid;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        background-color: var(--secondary-background-color);
+    }
+    
     .info-box {
-        background-color: #f0f2f6;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
+        border-left-color: #06B6D4;
+        color: #06B6D4;
+        background: linear-gradient(90deg, rgba(6, 182, 212, 0.05) 0%, rgba(6, 182, 212, 0.01) 100%);
     }
+    
     .success-box {
-        background-color: #d4edda;
-        border-left: 4px solid #28a745;
-        border-radius: 5px;
-        padding: 0.5rem;
-        margin: 0.5rem 0;
+        border-left-color: #10B981;
+        color: #10B981;
+        background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.01) 100%);
     }
+    
     .warning-box {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
-        border-radius: 5px;
-        padding: 0.5rem;
-        margin: 0.5rem 0;
+        border-left-color: #F59E0B;
+        color: #F59E0B;
+        background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, rgba(245, 158, 11, 0.01) 100%);
     }
+    
     .danger-box {
-        background-color: #f8d7da;
-        border-left: 4px solid #dc3545;
-        border-radius: 5px;
-        padding: 0.5rem;
-        margin: 0.5rem 0;
+        border-left-color: #EF4444;
+        color: #EF4444;
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.01) 100%);
     }
-    div.stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 25px;
-        padding: 0.5rem 2rem;
-        font-weight: bold;
+    
+    /* Styled Buttons (Main Area) */
+    .main div.stButton > button {
+        background: linear-gradient(135deg, #FF5722 0%, #FF2E93 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 14px !important;
+        padding: 0.8rem 2.2rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 6px 20px rgba(255, 46, 147, 0.3) !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        width: 100%;
+        letter-spacing: 0.5px;
     }
-    div.stButton > button:hover {
-        transform: scale(1.02);
-        transition: 0.3s;
+    
+    .main div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(255, 46, 147, 0.45) !important;
+        filter: brightness(1.1) !important;
     }
+ 
+    .main div.stButton > button:active {
+        transform: translateY(1px) !important;
+    }
+    
+    /* Sidebar styling and custom navigation menu */
+    section[data-testid="stSidebar"] {
+        background-color: var(--secondary-background-color) !important;
+        border-right: 1px solid rgba(128, 128, 128, 0.1) !important;
+    }
+ 
+    section[data-testid="stSidebar"] div.stButton > button {
+        background: transparent !important;
+        color: var(--text-color) !important;
+        opacity: 0.8;
+        border: none !important;
+        border-radius: 12px !important;
+        text-align: left !important;
+        padding: 0.7rem 1.2rem !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    section[data-testid="stSidebar"] div.stButton > button:hover {
+        background: rgba(255, 87, 34, 0.08) !important;
+        color: #FF5722 !important;
+        transform: translateX(4px) !important;
+        opacity: 1;
+    }
+    
+    /* Input & Control overrides */
+    div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stNumberInput"] input {
+        background-color: var(--secondary-background-color) !important;
+        color: var(--text-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 0.7rem 1rem !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus, div[data-testid="stNumberInput"] input:focus {
+        border-color: #FF5722 !important;
+        box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.2) !important;
+    }
+ 
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+        background-color: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
+        border-radius: 12px !important;
+    }
+    
+    div[data-testid="stSelectbox"] div[role="button"] {
+        color: var(--text-color) !important;
+    }
+ 
+    div[data-testid="stSlider"] [role="slider"] {
+        background-color: #FF5722 !important;
+    }
+    
+    div[data-testid="stSlider"] div[data-testid="stSliderTrack"] > div {
+        background-color: #FF5722 !important;
+    }
+ 
+    /* Custom styled Premium Tabs */
+    button[data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: var(--text-color) !important;
+        opacity: 0.7;
+        border-bottom: 2px solid transparent !important;
+        font-weight: 600 !important;
+        padding: 0.8rem 1.8rem !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        font-size: 1rem !important;
+    }
+ 
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #FF5722 !important;
+        border-bottom-color: #FF5722 !important;
+        opacity: 1;
+    }
+ 
+    /* Premium Expander Design */
+    div[data-testid="stExpander"] {
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+    }
+    
+    div[data-testid="stExpander"] details {
+        border: none !important;
+    }
+ 
+    /* Hide Streamlit default styling elements & Sidebar completely */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+   /* div[data-testid="stToolbar"] {
+        display: none !important;
+    } */
+    footer {
+        display: none !important;
+    }
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+    
+    /* ── Navigation Radio Navbar ── */
+    div[data-testid="stRadio"] {
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.1);
+        border-radius: 16px;
+        padding: 0.5rem 0.8rem;
+        margin-bottom: 1.5rem;
+    }
+    /* Make options sit in a horizontal flex row */
+    div[data-testid="stRadio"] > div[role="radiogroup"],
+    div[data-testid="stRadio"] > div:last-child {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        align-items: center !important;
+    }
+    /* Each option wrapper */
+    div[data-testid="stRadio"] label[data-baseweb="radio"] {
+        padding: 0.42rem 0.85rem !important;
+        border-radius: 10px !important;
+        border: 1px solid transparent !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        white-space: nowrap !important;
+    }
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:hover {
+        background: rgba(255, 87, 34, 0.08) !important;
+        border-color: rgba(255, 87, 34, 0.2) !important;
+    }
+    /* Hide the radio circle dot */
+    div[data-testid="stRadio"] [data-testid="stRadioOption"] > div:first-child,
+    div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+        display: none !important;
+    }
+    /* Option text colour */
+    div[data-testid="stRadio"] label[data-baseweb="radio"] span {
+        color: var(--text-color) !important;
+        opacity: 0.8;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+    }
+    /* Active / selected option */
+    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"],
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
+        background: rgba(255, 87, 34, 0.15) !important;
+        border-color: rgba(255, 87, 34, 0.35) !important;
+    }
+    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] span,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) span {
+        color: #FF5722 !important;
+        font-weight: 700 !important;
+        opacity: 1 !important;
+    }
+    @media (max-width: 768px) {
+        div[data-testid="stRadio"] label[data-baseweb="radio"] {
+            font-size: 0.78rem !important;
+            padding: 0.32rem 0.55rem !important;
+        }
+    }
+ 
+ 
+    /* Premium dataframes styling */
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(128, 128, 128, 0.1) !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
+    
+    /* Responsive Styling for Mobile */
+    @media (max-width: 768px) {
+        .main-header {
+            font-size: 2rem;
+            margin-bottom: 1.2rem;
+        }
+        div[data-testid="metric-container"] {
+            padding: 0.8rem 1rem !important;
+            margin-bottom: 0.8rem !important;
+        }
+        .main div.stButton > button {
+            padding: 0.6rem 1.8rem !important;
+            font-size: 0.95rem !important;
+        }
+    }
+    /* Auth Page Styles */
+    .auth-container {
+        max-width: 480px;
+        margin: 3rem auto;
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.15);
+        border-radius: 24px;
+        padding: 2.5rem 2.5rem;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.15);
+    }
+    .auth-logo {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    .auth-logo h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #FF5722 0%, #FF2E93 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+    }
+    .auth-logo p {
+        color: var(--text-color);
+        opacity: 0.7;
+        font-size: 0.9rem;
+        margin-top: 0.3rem;
+    }
+    .auth-divider {
+        border: none;
+        border-top: 1px solid rgba(128, 128, 128, 0.15);
+        margin: 1.2rem 0;
+    }
+    
+    /* Onboarding wizard custom styling via native border container */
+    div[data-baseweb="tab-panel"] div[data-testid="stVerticalBlockBorderWrapper"] {
+        max-width: 480px;
+        margin: 1rem auto !important;
+        background: var(--secondary-background-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.15) !important;
+        border-radius: 24px !important;
+        padding: 2.2rem !important;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.15) !important;
+    }
+    
+    .progress-bar-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        gap: 6px;
+    }
+    
+    .progress-segment {
+        flex: 1;
+        height: 6px;
+        background: rgba(128, 128, 128, 0.2);
+        border-radius: 3px;
+        transition: all 0.3s ease;
+    }
+    
+    .progress-segment.active {
+        background: linear-gradient(90deg, #FF5722 0%, #FF2E93 100%);
+        box-shadow: 0 0 8px rgba(255, 87, 34, 0.5);
+    }
+    
+    .wizard-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+    }
+    
+    .wizard-subtitle {
+        color: var(--text-color);
+        opacity: 0.7;
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    div[data-testid="stForm"] {
+        border: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    
+    .wizard-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+    }
+    
+    /* Highlight the sidebar toggle button to be highly visible and interactive */
+    button[data-testid="stHeaderSidebarToggle"] {
+        background-color: #FF5722 !important;
+        border-radius: 50% !important;
+        padding: 8px !important;
+        box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4) !important;
+        transition: all 0.3s ease !important;
+        border: 1px solid rgba(128,128,128,0.2) !important;
+        width: 42px !important;
+        height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    button[data-testid="stHeaderSidebarToggle"]:hover {
+        transform: scale(1.1) !important;
+        background-color: #FF2E93 !important;
+        box-shadow: 0 6px 20px rgba(255, 46, 147, 0.5) !important;
+    }
+    button[data-testid="stHeaderSidebarToggle"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }
+ 
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,36 +461,278 @@ if 'profile_updated' not in st.session_state:
     st.session_state.profile_updated = False
 if 'greeting_sent' not in st.session_state:
     st.session_state.greeting_sent = False
+if 'active_menu' not in st.session_state:
+    st.session_state.active_menu = "🏠 Dashboard"
 
-# Sidebar Navigation
-st.sidebar.markdown(
-    """
-    <div style="text-align: center; padding: 10px 0;">
-        <img src="https://img.icons8.com/?size=100&id=Gfu2ShSgiWKq&format=png&color=000000" width="70">
-        <h2 style="margin-top: 10px; margin-bottom: 5px;"> Smart Fitness & Food Tracker</h2>
-        <hr style="margin-top: 10px; margin-bottom: 10px;">
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Multi-step registration state
+if 'reg_step' not in st.session_state:
+    st.session_state.reg_step = 0
+if 'reg_username' not in st.session_state:
+    st.session_state.reg_username = ""
+if 'reg_password' not in st.session_state:
+    st.session_state.reg_password = ""
+if 'reg_name' not in st.session_state:
+    st.session_state.reg_name = ""
+if 'reg_age' not in st.session_state:
+    st.session_state.reg_age = 25
+if 'reg_gender' not in st.session_state:
+    st.session_state.reg_gender = "Male"
+if 'reg_height' not in st.session_state:
+    st.session_state.reg_height = 170
+if 'reg_weight' not in st.session_state:
+    st.session_state.reg_weight = 65.0
+if 'reg_activity' not in st.session_state:
+    st.session_state.reg_activity = list(ACTIVITY_MULTIPLIERS.keys())[0]
+if 'reg_goal' not in st.session_state:
+    st.session_state.reg_goal = list(FITNESS_GOALS.keys())[0]
 
-# Navigation menu
-menu = st.sidebar.radio(
-    "📋 Menu",
-    ["🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", "🏋️ Fitness Level Classifier",
-     "📈 Progress", "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"]
-)
+# ==================== AUTH GATE ====================
+if st.session_state.user_id is None:
 
-st.sidebar.markdown("---")
-st.sidebar.info(
-    """
-    **Tips:**
-    - Track your meals daily
-    - Log your workouts
-    - Check progress weekly
-    - Ask AI for advice
-    """
+    st.markdown('<div class="auth-logo"><h1>💪 FitTrack AI</h1><p>Smart Fitness & Food Tracker</p></div>', unsafe_allow_html=True)
+
+    auth_tab1, auth_tab2 = st.tabs(["🔑 Login", "📝 Register"])
+
+    # -------- LOGIN TAB --------
+    with auth_tab1:
+        st.markdown('<br>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown('<div style="text-align: center; margin-bottom: 1.5rem;"><h3 style="margin:0; color:#FFFFFF;">🔑 Welcome Back</h3><p style="color:#8E8E93; font-size:0.9rem; margin:0.3rem 0 0 0;">Login to your fitness tracker</p></div>', unsafe_allow_html=True)
+            with st.form("login_form"):
+                login_username = st.text_input("Username", placeholder="Masukkan username kamu")
+                login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
+                login_btn = st.form_submit_button("🔑 Login", use_container_width=True)
+
+            if login_btn:
+                if not login_username or not login_password:
+                    st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
+                else:
+                    user_row = authenticate_user(login_username, login_password)
+                    if user_row is not None:
+                        st.session_state.user_id = int(user_row['user_id'])
+                        st.session_state.user = user_row.to_dict()
+                        st.session_state.active_menu = "🏠 Dashboard"
+                        st.session_state.chatbot = None
+                        st.session_state.messages = []
+                        st.session_state.greeting_sent = False
+                        st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                        time.sleep(0.8)
+                        st.rerun()
+                    else:
+                        st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
+
+    # -------- REGISTER TAB --------
+    with auth_tab2:
+        st.markdown('<br>', unsafe_allow_html=True)
+        with st.container(border=True):
+            if st.session_state.reg_step == 0:
+                st.markdown('<div class="wizard-title">💪 Welcome to FitTrack AI</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Ready for some wins? Start tracking, it\'s easy! Let\'s customize FitTrack AI for your goals.</div>', unsafe_allow_html=True)
+                
+                st.markdown("""
+                <div style="background-color: rgba(255, 87, 34, 0.05); padding: 1.2rem; border-radius: 16px; border-left: 4px solid #FF5722; font-size: 0.9rem; line-height: 1.5; margin-bottom: 2rem;">
+                    Menghitung TDEE, BMR, BMI, serta rekomendasi nutrisi harian kamu berdasarkan metode kebugaran yang terbukti secara ilmiah.
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🚀 Get Started", use_container_width=True, key="start_btn"):
+                    st.session_state.reg_step = 1
+                    st.rerun()
+
+            elif st.session_state.reg_step == 1:
+                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-title">👤 Buat Akun Baru</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Masukkan username dan password unik Anda.</div>', unsafe_allow_html=True)
+                
+                reg_username = st.text_input("Username*", value=st.session_state.reg_username, placeholder="Buat username unikmu")
+                reg_password = st.text_input("Password*", type="password", value=st.session_state.reg_password, placeholder="Min. 6 karakter")
+                reg_password2 = st.text_input("Konfirmasi Password*", type="password", placeholder="Ulangi password")
+                
+                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    if st.button("⬅️ Back", key="back_1", use_container_width=True):
+                        st.session_state.reg_step = 0
+                        st.rerun()
+                with col2:
+                    if st.button("Next ➡️", key="next_1", use_container_width=True):
+                        if not reg_username or len(reg_username) < 3:
+                            st.error("❌ Username minimal 3 karakter.")
+                        elif username_exists(reg_username):
+                            st.error("❌ Username sudah digunakan, silakan pilih username lain.")
+                        elif not reg_password or len(reg_password) < 6:
+                            st.error("❌ Password minimal 6 karakter.")
+                        elif reg_password != reg_password2:
+                            st.error("❌ Konfirmasi password tidak cocok.")
+                        else:
+                            st.session_state.reg_username = reg_username
+                            st.session_state.reg_password = reg_password
+                            st.session_state.reg_step = 2
+                            st.rerun()
+
+            elif st.session_state.reg_step == 2:
+                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-title">🙋‍♂️ Siapa Nama Anda?</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Beritahu kami sedikit informasi dasar tentang diri Anda.</div>', unsafe_allow_html=True)
+                
+                reg_name = st.text_input("Nama Lengkap*", value=st.session_state.reg_name, placeholder="Nama kamu")
+                reg_age = st.number_input("Usia (tahun)*", min_value=15, max_value=100, value=int(st.session_state.reg_age))
+                reg_gender = st.selectbox("Jenis Kelamin*", ["Male", "Female"], index=0 if st.session_state.reg_gender == "Male" else 1)
+                
+                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    if st.button("⬅️ Back", key="back_2", use_container_width=True):
+                        st.session_state.reg_step = 1
+                        st.rerun()
+                with col2:
+                    if st.button("Next ➡️", key="next_2", use_container_width=True):
+                        if not reg_name.strip():
+                            st.error("❌ Nama lengkap wajib diisi.")
+                        else:
+                            st.session_state.reg_name = reg_name
+                            st.session_state.reg_age = reg_age
+                            st.session_state.reg_gender = reg_gender
+                            st.session_state.reg_step = 3
+                            st.rerun()
+
+            elif st.session_state.reg_step == 3:
+                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-title">📏 Ukuran Tubuh Anda</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Masukkan tinggi dan berat badan terbaru Anda untuk menghitung BMI secara akurat.</div>', unsafe_allow_html=True)
+                
+                reg_height = st.number_input("Tinggi Badan (cm)*", min_value=100, max_value=250, value=int(st.session_state.reg_height))
+                reg_weight = st.number_input("Berat Badan (kg)*", min_value=30.0, max_value=200.0, value=float(st.session_state.reg_weight), step=0.5)
+                
+                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    if st.button("⬅️ Back", key="back_3", use_container_width=True):
+                        st.session_state.reg_step = 2
+                        st.rerun()
+                with col2:
+                    if st.button("Next ➡️", key="next_3", use_container_width=True):
+                        st.session_state.reg_height = reg_height
+                        st.session_state.reg_weight = reg_weight
+                        st.session_state.reg_step = 4
+                        st.rerun()
+
+            elif st.session_state.reg_step == 4:
+                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-title">🏃‍♂️ Tingkat Aktivitas & Tujuan</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Sesuaikan target energi berdasarkan tingkat aktivitas fisik dan goal Anda.</div>', unsafe_allow_html=True)
+                
+                reg_activity = st.selectbox("Tingkat Aktivitas*", list(ACTIVITY_MULTIPLIERS.keys()), index=list(ACTIVITY_MULTIPLIERS.keys()).index(st.session_state.reg_activity))
+                reg_goal = st.selectbox("Tujuan Kebugaran*", list(FITNESS_GOALS.keys()), index=list(FITNESS_GOALS.keys()).index(st.session_state.reg_goal))
+                
+                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    if st.button("⬅️ Back", key="back_4", use_container_width=True):
+                        st.session_state.reg_step = 3
+                        st.rerun()
+                with col2:
+                    if st.button("Next ➡️", key="next_4", use_container_width=True):
+                        st.session_state.reg_activity = reg_activity
+                        st.session_state.reg_goal = reg_goal
+                        st.session_state.reg_step = 5
+                        st.rerun()
+
+            elif st.session_state.reg_step == 5:
+                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-title">🎉 Analisis & Ringkasan Profil</div>', unsafe_allow_html=True)
+                st.markdown('<div class="wizard-subtitle">Berikut estimasi perhitungan kesehatan Anda. Klik tombol di bawah untuk membuat akun!</div>', unsafe_allow_html=True)
+                
+                bmr = calculate_bmr(st.session_state.reg_weight, st.session_state.reg_height, st.session_state.reg_age, st.session_state.reg_gender)
+                tdee = calculate_tdee(bmr, st.session_state.reg_activity)
+                daily_target = calculate_daily_target(tdee, st.session_state.reg_goal)
+                bmi = calculate_bmi(st.session_state.reg_weight, st.session_state.reg_height)
+                bmi_cat = get_bmi_category(bmi)
+                
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 1.2rem; border-radius: 16px; margin-bottom: 1.5rem;">
+                    <h5 style="margin-top:0; color:#FF5722;">📊 Hasil Analisis Tubuh</h5>
+                    <table style="width:100%; font-size:0.9rem; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding:6px 0; color:#8E8E93;">BMR</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FFF;">{bmr:.0f} kcal/day</td></tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding:6px 0; color:#8E8E93;">TDEE</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FFF;">{tdee:.0f} kcal/day</td></tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"><td style="padding:6px 0; color:#8E8E93;">Target Kalori</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FF2E93;">{daily_target:.0f} kcal/day</td></tr>
+                        <tr><td style="padding:6px 0; color:#8E8E93;">BMI (IMT)</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#06B6D4;">{bmi:.1f} ({bmi_cat})</td></tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    if st.button("⬅️ Back", key="back_5", use_container_width=True):
+                        st.session_state.reg_step = 4
+                        st.rerun()
+                with col2:
+                    if st.button("📝 Buat Akun & Mulai!", key="submit_btn", use_container_width=True):
+                        result = register_user(st.session_state.reg_username, st.session_state.reg_password, {
+                            'name': st.session_state.reg_name, 
+                            'age': st.session_state.reg_age, 
+                            'gender': st.session_state.reg_gender,
+                            'height_cm': st.session_state.reg_height, 
+                            'weight_kg': st.session_state.reg_weight,
+                            'activity_level': st.session_state.reg_activity, 
+                            'fitness_goal': st.session_state.reg_goal,
+                            'bmr': bmr, 
+                            'tdee': tdee, 
+                            'daily_target_calories': daily_target
+                        })
+                        
+                        if result['success']:
+                            new_uid = result['user_id']
+                            update_weight(new_uid, st.session_state.reg_weight)
+                            user_row = get_user(new_uid)
+                            st.session_state.user_id = new_uid
+                            st.session_state.user = user_row.to_dict()
+                            st.session_state.active_menu = "🏠 Dashboard"
+                            st.session_state.chatbot = None
+                            st.session_state.messages = []
+                            st.session_state.greeting_sent = False
+                            st.session_state.reg_step = 0
+                            st.success(f"🎉 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
+                            st.balloons()
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {result['error']}")
+
+    st.stop()  # Hentikan render konten di bawah jika belum login
+
+# ==================== NAVIGATION & TOP NAVBAR ====================
+
+# Ambil data user dari session state
+logged_user = st.session_state.user
+if logged_user is None:
+    logged_user_row = get_user(st.session_state.user_id)
+    if logged_user_row is not None:
+        logged_user = logged_user_row.to_dict()
+        st.session_state.user = logged_user
+
+menu_options = [
+    "🏠 Dashboard", "👤 Profile", "🍎 Food Log", "🏃 Activity Log", "🏋️ Fitness Level Classifier",
+    "🤖 AI Chatbot", "📊 ML Predictor", "ℹ️ About"
+]
+
+# ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
+current_idx = menu_options.index(st.session_state.active_menu) if st.session_state.active_menu in menu_options else 0
+selected_menu = st.radio(
+    "Navigation",
+    menu_options,
+    index=current_idx,
+    horizontal=True,
+    key="main_nav_radio",
+    label_visibility="collapsed"
 )
+# Only update active_menu if user explicitly changed the radio (not during form submits)
+if selected_menu != st.session_state.active_menu:
+    st.session_state.active_menu = selected_menu
+    st.rerun()
+
+menu = st.session_state.active_menu
 
 # ==================== MAIN APPLICATION ====================
 
@@ -139,22 +747,41 @@ if menu == "🏠 Dashboard":
         if user is not None:
             st.session_state.user = user
     else:
-        user = get_user()
-        if user is not None:
-            st.session_state.user = user
-            st.session_state.user_id = user['user_id']
+        user = None
     
     if user is None:
-        st.warning("⚠️ Please complete your profile first!")
-        if st.button("Go to Profile"):
-            st.session_state.menu = "👤 Profile"
+        st.markdown('''
+        <div class="warning-box">
+            <strong>⚠️ Profil Belum Lengkap!</strong><br>Silakan lengkapi profil Anda terlebih dahulu di menu 👤 Profile untuk mengaktifkan seluruh fitur tracker.
+        </div>
+        ''', unsafe_allow_html=True)
+        if st.button("Go to Profile", key="dashboard_go_profile"):
+            st.session_state.active_menu = "👤 Profile"
             st.rerun()
     else:
         # Ensure session_state is synced
         st.session_state.user_id = user['user_id']
         st.session_state.user = user
         
-        st.markdown(f"### Welcome back, {user['name']}! 👋")
+        dash_col1, dash_col2 = st.columns([5, 1])
+        with dash_col1:
+            st.markdown(f"### Welcome back, {user['name']}! 👋")
+        with dash_col2:
+            if st.button("🚪 Logout", key="dash_logout_btn", use_container_width=True):
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
+        
+        # Quick terminology guide for laypeople
+        with st.expander("ℹ️ Panduan Singkat Istilah Kesehatan (BMR, TDEE, BMI, Defisit/Surplus)"):
+            st.markdown("""
+            Jika kamu baru di dunia kebugaran, berikut adalah penjelasan singkat istilah yang digunakan di dashboard ini:
+            *   **BMR (Basal Metabolic Rate):** Jumlah kalori minimum yang dibakar tubuhmu hanya untuk bernapas dan bertahan hidup saat rebahan seharian.
+            *   **TDEE (Total Daily Energy Expenditure):** Total kalori yang kamu bakar dalam sehari setelah ditambah aktivitas fisik (jalan, kerja, olahraga).
+            *   **BMI (Body Mass Index):** Angka untuk melihat apakah tubuhmu kurus, ideal, gemuk, atau obesitas berdasarkan tinggi & berat badan.
+            *   **Defisit Kalori (Net Balance Negatif):** Makan lebih sedikit dari yang kamu bakar. Tubuh akan membakar lemak untuk energi (menurunkan berat badan).
+            *   **Surplus Kalori (Net Balance Positif):** Makan lebih banyak dari yang kamu bakar. Berguna untuk menaikkan berat badan atau membangun otot.
+            """)
         
         # Today's summary
         col1, col2, col3, col4 = st.columns(4)
@@ -165,47 +792,254 @@ if menu == "🏠 Dashboard":
         remaining = target - net_calories
         
         with col1:
-            st.metric("🔥 Calories In", f"{calories_in:.0f} kcal", 
-                     delta=f"vs {target:.0f} target")
+            st.metric(
+                "🔥 Calories In", 
+                f"{calories_in:.0f} kcal", 
+                delta=f"vs {target:.0f} target",
+                help="Total kalori dari makanan dan minuman yang kamu konsumsi hari ini."
+            )
         with col2:
-            st.metric("⚡ Calories Out", f"{calories_out:.0f} kcal")
+            st.metric(
+                "⚡ Calories Out", 
+                f"{calories_out:.0f} kcal",
+                help="Total kalori yang dibakar hari ini melalui metabolisme tubuh (TDEE) ditambah aktivitas olahraga."
+            )
         with col3:
-            st.metric("📊 Net Balance", f"{net_calories:.0f} kcal",
-                     delta=f"{remaining:.0f} remaining")
+            st.metric(
+                "📊 Net Balance", 
+                f"{net_calories:.0f} kcal",
+                delta=f"{remaining:.0f} remaining",
+                help="Kalori Masuk dikurangi Kalori Keluar. Nilai negatif (-) berarti kamu berada dalam kondisi defisit kalori (bagus untuk menurunkan berat badan)."
+            )
         with col4:
-            st.metric("💪 BMI", f"{calculate_bmi(user['weight_kg'], user['height_cm']):.1f}",
-                     delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])))
+            st.metric(
+                "💪 BMI", 
+                f"{calculate_bmi(user['weight_kg'], user['height_cm']):.1f}",
+                delta=get_bmi_category(calculate_bmi(user['weight_kg'], user['height_cm'])),
+                help="Body Mass Index (Indeks Massa Tubuh) adalah pengukuran lemak tubuh berdasarkan tinggi dan berat badan untuk menentukan kategori berat badan ideal."
+            )
         
-        # Weekly calorie chart
+        # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
         st.markdown("---")
-        st.subheader("📊 Weekly Calorie Summary")
+        col_r1a, col_r1b = st.columns(2)
         
-        food_logs = get_food_logs(user['user_id'], 7)
-        activity_logs = get_activity_logs(user['user_id'], 7)
+        with col_r1a:
+            st.subheader("📊 Weekly Calorie Summary")
+            food_logs = get_food_logs(user['user_id'], 7)
+            activity_logs = get_activity_logs(user['user_id'], 7)
+            
+            dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+            daily_in = []
+            daily_out = []
+            
+            for d in dates:
+                day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
+                day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
+                daily_in.append(day_in)
+                daily_out.append(day_out)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF5722'))
+            fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#06B6D4'))
+            fig.update_layout(
+                barmode='group', 
+                title='Daily Calorie Comparison (7 Days)', 
+                height=350,
+                template='plotly_dark',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                margin=dict(l=20, r=20, t=50, b=20)
+            )
+            fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
+            fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col_r1b:
+            st.subheader("🔥 Calorie Trend Analysis")
+            food_logs_30 = get_food_logs(user['user_id'], 30)
+            activity_logs_30 = get_activity_logs(user['user_id'], 30)
+            
+            if len(food_logs_30) > 0 or len(activity_logs_30) > 0:
+                daily_summary = {}
+                for _, row in food_logs_30.iterrows():
+                    date_str = row['log_date']
+                    if date_str not in daily_summary:
+                        daily_summary[date_str] = {'in': 0, 'out': 0}
+                    daily_summary[date_str]['in'] += row['calories']
+                
+                for _, row in activity_logs_30.iterrows():
+                    date_str = row['log_date']
+                    if date_str not in daily_summary:
+                        daily_summary[date_str] = {'in': 0, 'out': 0}
+                    daily_summary[date_str]['out'] += row['calories_burned']
+                
+                trend_data = pd.DataFrame([
+                    {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
+                    for d, v in sorted(daily_summary.items())
+                ])
+                
+                fig_trend = go.Figure()
+                fig_trend.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
+                                         mode='lines+markers', line=dict(color='#FF5722', width=2.5)))
+                fig_trend.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
+                                         mode='lines+markers', line=dict(color='#06B6D4', width=2.5)))
+                fig_trend.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
+                                         mode='lines+markers', line=dict(color='#8B5CF6', width=2, dash='dash')))
+                fig_trend.update_layout(
+                    title='Daily Calorie Trends (30 Days)', 
+                    height=350, 
+                    hovermode='x unified',
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                    margin=dict(l=20, r=20, t=50, b=20)
+                )
+                fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
+                fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                st.plotly_chart(fig_trend, use_container_width=True)
+            else:
+                st.info("Log your meals and activities to see 30-day calorie trend charts!")
         
-        dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
-        daily_in = []
-        daily_out = []
+        # ==================== ROW 2: WEIGHT PROGRESS ====================
+        st.markdown("---")
+        st.subheader("⚖️ Weight Progress")
+        weight_history = get_weight_progress(user['user_id'])
+        if len(weight_history) > 0:
+            weight_history['record_date'] = pd.to_datetime(weight_history['record_date']).dt.strftime('%Y-%m-%d')
         
-        for d in dates:
-            day_in = food_logs[food_logs['log_date'] == d]['calories'].sum() if len(food_logs) > 0 else 0
-            day_out = activity_logs[activity_logs['log_date'] == d]['calories_burned'].sum() if len(activity_logs) > 0 else 0
-            daily_in.append(day_in)
-            daily_out.append(day_out)
+        # Sub-columns inside weight progress to fit Update Weight form neatly
+        col_inner1, col_inner2 = st.columns([2, 1])
+        with col_inner1:
+            if len(weight_history) > 0:
+                fig_w = px.line(
+                    weight_history, 
+                    x='record_date', 
+                    y='weight_kg',
+                    title='Weight Over Time',
+                    labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
+                )
+                fig_w.update_traces(line=dict(color='#FF5722', width=3))
+                fig_w.update_layout(
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    height=280
+                )
+                fig_w.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
+                fig_w.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
+                st.plotly_chart(fig_w, use_container_width=True)
+                
+                start_weight = weight_history.iloc[0]['weight_kg']
+                latest_weight = weight_history.iloc[-1]['weight_kg']
+                change = latest_weight - start_weight
+                
+                if change < 0:
+                    st.success(f"✅ Lost {abs(change):.1f} kg since start!")
+                elif change > 0:
+                    st.info(f"📈 Gained {change:.1f} kg since start")
+                else:
+                    st.info("Weight is stable")
+            else:
+                st.info("No weight history found.")
+                
+        with col_inner2:
+            st.markdown("**Update Weight**")
+            new_weight = st.number_input("Weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']), key="dash_update_weight_input")
+            if st.button("📝 Record Weight", key="dash_record_weight_btn"):
+                update_weight(user['user_id'], new_weight)
+                st.success("Recorded!")
+                st.rerun()
         
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='Calories In', x=dates, y=daily_in, marker_color='#FF6B6B'))
-        fig.add_trace(go.Bar(name='Calories Out', x=dates, y=daily_out, marker_color='#4ECDC4'))
-        fig.update_layout(barmode='group', title='Daily Calorie Comparison', height=400)
-        fig.update_xaxes(title='Date')
-        fig.update_yaxes(title='Calories (kcal)')
-        st.plotly_chart(fig, use_container_width=True)
+        # ==================== ROW 2.5: WEIGHT FORECASTING ====================
+        st.markdown("---")
+        st.subheader("🔮 Weight Forecasting (ML)")
+        forecast_col1, forecast_col2 = st.columns([1, 2])
+        with forecast_col1:
+            forecast_days = st.selectbox(
+                "Forecast Range",
+                options=[7, 14, 30],
+                format_func=lambda x: f"{x} days",
+                index=2,
+                key="dash_forecast_horizon",
+            )
         
-        # Recent activities
+        result_fc = forecast_weight(user['user_id'], days=forecast_days)
+        if result_fc['enough_data']:
+            forecast_df = result_fc['forecast']
+            hist_df = result_fc['history'].copy()
+            coef = result_fc['model_coef']
+            r2 = result_fc['model_r2']
+            
+            # Forecasting Metrics
+            fm1, fm2, fm3 = st.columns(3)
+            with fm1:
+                direction = "📉 Down" if coef < 0 else ("📈 Up" if coef > 0 else "➡️ Stable")
+                st.metric("Trend", f"{abs(coef):.3f} kg/d", delta=direction)
+            with fm2:
+                st.metric("R² Score", f"{r2:.2f}")
+            with fm3:
+                pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
+                st.metric("Forecast", f"{pred_end:.1f} kg")
+            
+            fig_fc = go.Figure()
+            hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
+            fig_fc.add_trace(go.Scatter(
+                x=hist_df['record_date'],
+                y=hist_df['weight_kg'],
+                mode='lines+markers',
+                name='History',
+                line=dict(color='#4ECDC4', width=2.5),
+                marker=dict(size=6),
+            ))
+            bridge_dates = [
+                hist_df['record_date'].iloc[-1],
+                forecast_df['date'].iloc[0]
+            ]
+            bridge_weights = [
+                hist_df['weight_kg'].iloc[-1],
+                forecast_df['predicted_weight_kg'].iloc[0]
+            ]
+            fig_fc.add_trace(go.Scatter(
+                x=bridge_dates,
+                y=bridge_weights,
+                mode='lines',
+                line=dict(color='#FF6B6B', width=1.5, dash='dot'),
+                showlegend=False,
+            ))
+            fig_fc.add_trace(go.Scatter(
+                x=forecast_df['date'],
+                y=forecast_df['predicted_weight_kg'],
+                mode='lines+markers',
+                name=f'Forecast',
+                line=dict(color='#FF6B6B', width=2.5, dash='dot'),
+                marker=dict(size=5, symbol='diamond'),
+            ))
+            fig_fc.update_layout(
+                template='plotly_dark',
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=200,
+                hovermode='x unified',
+                showlegend=False
+            )
+            st.plotly_chart(fig_fc, use_container_width=True)
+        else:
+            st.info(
+                "⚠️ Minimum 2 weight logs required to predict trend."
+            )
+                
+        # ==================== ROW 3: RECENT ACTIVITIES ====================
+        st.markdown("---")
         st.subheader("📋 Recent Activities")
-        col1, col2 = st.columns(2)
+        col_r3a, col_r3b = st.columns(2)
         
-        with col1:
+        with col_r3a:
             st.markdown("**🍎 Recent Meals**")
             if len(food_logs) > 0:
                 recent_meals = food_logs.head(5)
@@ -214,7 +1048,7 @@ if menu == "🏠 Dashboard":
             else:
                 st.info("No meals logged today")
         
-        with col2:
+        with col_r3b:
             st.markdown("**🏃 Recent Workouts**")
             if len(activity_logs) > 0:
                 recent_activities = activity_logs.head(5)
@@ -229,11 +1063,12 @@ elif menu == "👤 Profile":
     # Use session state user if available, otherwise fetch from DB
     if st.session_state.user is not None:
         user = st.session_state.user
-    else:
-        user = get_user()
+    elif st.session_state.user_id is not None:
+        user = get_user(st.session_state.user_id)
         if user is not None:
             st.session_state.user = user
-            st.session_state.user_id = user['user_id']
+    else:
+        user = None
     
     with st.form("user_profile_form"):
         col1, col2 = st.columns(2)
@@ -252,7 +1087,13 @@ elif menu == "👤 Profile":
                                        index=1 if user is None else list(FITNESS_GOALS.keys()).index(user['fitness_goal']))
         
         st.markdown("---")
-        st.subheader("📊 Your Health Metrics")
+        st.subheader("📊 Your Health Metrics (Hasil Analisis Tubuhmu)")
+        st.markdown("""
+        <div style="background-color: rgba(102, 126, 234, 0.05); padding: 10px; border-radius: 8px; border-left: 4px solid #667eea; margin-bottom: 15px; font-size: 0.9rem;">
+            Analisis di bawah dihitung otomatis berdasarkan berat, tinggi, usia, gender, dan tingkat aktivitasmu. 
+            Gunakan angka-angka ini sebagai acuan porsi makan harianmu!
+        </div>
+        """, unsafe_allow_html=True)
         
         # Calculate metrics based on current form inputs
         bmr = calculate_bmr(weight_kg, height_cm, age, gender)
@@ -262,56 +1103,86 @@ elif menu == "👤 Profile":
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("BMR", f"{bmr:.0f} kcal/day")
+            st.metric(
+                "BMR", 
+                f"{bmr:.0f} kcal/day", 
+                help="Basal Metabolic Rate: Kalori yang dibakar organ tubuh secara otomatis (jantung, paru-paru) saat kamu tidak melakukan apa pun."
+            )
         with col2:
-            st.metric("TDEE", f"{tdee:.0f} kcal/day")
+            st.metric(
+                "TDEE", 
+                f"{tdee:.0f} kcal/day", 
+                help="Total Daily Energy Expenditure: Total kebutuhan kalori harianmu setelah memperhitungkan tingkat aktivitas fisik pilihanmu."
+            )
         with col3:
-            st.metric("Daily Target", f"{daily_target:.0f} kcal/day")
+            st.metric(
+                "Daily Target", 
+                f"{daily_target:.0f} kcal/day",
+                help="Target Kalori Harian: Jumlah kalori yang harus dikonsumsi untuk mencapai tujuanmu (defisit 500 kalori untuk menurunkan berat badan, surplus 300 kalori untuk menambah otot, atau sama dengan TDEE untuk mempertahankan berat)."
+            )
         with col4:
-            st.metric("BMI", f"{bmi:.1f}", delta=get_bmi_category(bmi))
+            st.metric(
+                "BMI", 
+                f"{bmi:.1f}", 
+                delta=get_bmi_category(bmi),
+                help="Body Mass Index: Perbandingan tinggi dan berat badanmu. Kategori: Underweight (<18.5), Normal (18.5-24.9), Overweight (25-29.9), Obese (>=30)."
+            )
         
-        submitted = st.form_submit_button("💾 Save Profile")
+        submitted = st.form_submit_button("💾 Save Profile", use_container_width=True)
+
+    # ── Process profile save OUTSIDE the form block ──
+    if submitted:
+        user_data = {
+            'name': name,
+            'age': int(age),
+            'gender': gender,
+            'height_cm': int(height_cm),
+            'weight_kg': float(weight_kg),
+            'activity_level': activity_level,
+            'fitness_goal': fitness_goal,
+            'bmr': float(bmr),
+            'tdee': float(tdee),
+            'daily_target_calories': float(daily_target)
+        }
         
-        if submitted:
-            user_data = {
-                'name': name,
-                'age': age,
-                'gender': gender,
-                'height_cm': height_cm,
-                'weight_kg': weight_kg,
-                'activity_level': activity_level,
-                'fitness_goal': fitness_goal,
-                'bmr': bmr,
-                'tdee': tdee,
-                'daily_target_calories': daily_target
-            }
-            
-            if user is not None:
-                user_data['user_id'] = user['user_id']
-            
+        if user is not None:
+            user_data['user_id'] = int(user['user_id'])
+        
+        try:
             user_id = save_user(user_data)
-            user_data['user_id'] = user_id
+            user_data['user_id'] = int(user_id)
             
             # Update session state
             st.session_state.user = user_data
-            st.session_state.user_id = user_id
-            st.session_state.chatbot = FitnessChatbot(user_data)
-            st.session_state.profile_updated = True   # Tandai profil sudah diupdate
+            st.session_state.user_id = int(user_id)
+            # Explicitly stay on Profile after save
+            st.session_state.active_menu = "👤 Profile"
+            
+            # Reset chatbot with new profile data (lazy — don't initialize now)
+            st.session_state.chatbot = None
+            st.session_state.profile_updated = True
+            st.session_state.greeting_sent = False
             
             # Record weight
-            update_weight(user_id, weight_kg)
+            update_weight(int(user_id), float(weight_kg))
             
-            st.success("✅ Profile saved successfully!")
-            st.balloons()
-            time.sleep(1)
+            st.success("✅ Profile berhasil disimpan!")
             st.rerun()
+        except Exception as e:
+            st.error(f"❌ Gagal menyimpan profil: {str(e)}")
+
+
 
 elif menu == "🍎 Food Log":
     st.markdown('<div class="main-header">🍎 Food Log</div>', unsafe_allow_html=True)
     
     # Gunakan session state user
     if st.session_state.user is None:
-        st.warning("⚠️ Please complete your profile first!")
+        st.markdown('''
+        <div class="warning-box">
+            <strong>⚠️ Profil Belum Lengkap!</strong><br>Silakan lengkapi profil Anda terlebih dahulu di menu 👤 Profile untuk mengaktifkan fitur pencatatan makanan.
+        </div>
+        ''', unsafe_allow_html=True)
         st.stop()
     user = st.session_state.user
     
@@ -320,6 +1191,17 @@ elif menu == "🍎 Food Log":
     with tab1:
         st.subheader("Add Food Entry")
         
+        # Macronutrients & Calorie explanation glossary
+        with st.expander("📚 Mengenal Kalori & Makronutrisi (Karbohidrat, Protein, Lemak)"):
+            st.markdown("""
+            Saat mencatat makanan, penting untuk memahami nutrisi yang masuk ke tubuhmu:
+            *   **Kalori (kcal):** Satuan energi yang didapat dari makanan. Untuk turun berat badan, konsumsi kalori harus lebih kecil dari pembakaran (TDEE).
+            *   **Protein:** Makronutrisi penting untuk membangun dan memperbaiki jaringan otot. Sangat direkomendasikan saat diet/olahraga (1g protein = 4 kalori).
+            *   **Karbohidrat (Carbs):** Sumber energi utama tubuh untuk beraktivitas dan olahraga berat (1g karbohidrat = 4 kalori).
+            *   **Lemak (Fat):** Penting untuk kesehatan hormon, sendi, dan penyerapan vitamin (1g lemak = 9 kalori).
+            """)
+        
+        # Gunakan form agar submit bisa langsung memproses
         with st.form(key="food_form"):
             food_input = st.text_area(
                 "Describe what you ate",
@@ -541,7 +1423,11 @@ elif menu == "🏃 Activity Log":
     st.markdown('<div class="main-header">🏃 Activity Log</div>', unsafe_allow_html=True)
     
     if st.session_state.user is None:
-        st.warning("⚠️ Please complete your profile first!")
+        st.markdown('''
+        <div class="warning-box">
+            <strong>⚠️ Profil Belum Lengkap!</strong><br>Silakan lengkapi profil Anda terlebih dahulu di menu 👤 Profile untuk mengaktifkan fitur pencatatan aktivitas.
+        </div>
+        ''', unsafe_allow_html=True)
         st.stop()
     user = st.session_state.user
     
@@ -550,19 +1436,34 @@ elif menu == "🏃 Activity Log":
     with tab1:
         st.subheader("Log Your Workout")
         
-        col1, col2 = st.columns(2)
+        # MET & Calorie explanation for laypeople
+        with st.expander("🔍 Bagaimana Kalori Olahraga Dihitung? (Mengenal MET)"):
+            st.markdown("""
+            Aplikasi ini menghitung kalori olahraga menggunakan nilai **MET (Metabolic Equivalent of Task)**:
+            *   **MET** menunjukkan seberapa banyak energi yang kamu gunakan untuk suatu aktivitas dibandingkan dengan saat duduk diam (1 MET).
+            *   Misalnya, **HIIT (8.5 MET)** membakar energi 8.5 kali lebih banyak daripada diam/istirahat.
+            
+            **Rumus Perhitungan Kalori:**
+            $$\\text{Kalori Dibakar} = \\frac{\\text{MET} \\times 3.5 \\times \\text{Berat Badan (kg)}}{200} \\times \\text{Durasi (menit)}$$
+            *Jadi, berat badan yang lebih besar atau intensitas yang lebih tinggi akan membakar kalori lebih cepat!*
+            """)
         
-        with col1:
-            activity_type = st.selectbox("Activity Type", list(ACTIVITY_MET.keys()))
-            duration_min = st.number_input("Duration (minutes)", min_value=1, max_value=300, value=30)
-            intensity = st.select_slider("Intensity", options=["Low", "Medium", "High"], value="Medium")
+        with st.form("activity_log_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                activity_type = st.selectbox("Activity Type", list(ACTIVITY_MET.keys()))
+                duration_min = st.number_input("Duration (minutes)", min_value=1, max_value=300, value=30)
+                intensity = st.select_slider("Intensity", options=["Low", "Medium", "High"], value="Medium")
+            
+            with col2:
+                st.markdown("**Estimated Calories Burned**")
+                st.markdown("*Will be calculated after you click Log Activity*")
+            
+            log_activity_btn = st.form_submit_button("✅ Log Activity", use_container_width=True)
         
-        with col2:
+        if log_activity_btn:
             calories_burned = calculate_calories_burned_met(activity_type, duration_min, user['weight_kg'])
-            st.metric("Estimated Calories Burned", f"{calories_burned:.0f} kcal")
-            st.caption(f"Based on MET value: {ACTIVITY_MET[activity_type]} MET")
-        
-        if st.button("✅ Log Activity", use_container_width=True):
             add_activity_log(
                 user['user_id'],
                 activity_type,
@@ -725,218 +1626,16 @@ elif menu == "🏋️ Fitness Level Classifier":
     else:
         st.error("Gagal memuat model. Pastikan file dataset 'bodyPerformance.csv' tersedia di folder 'data/'.")
 
-elif menu == "📈 Progress":
-    st.markdown('<div class="main-header">📈 Progress Tracking</div>', unsafe_allow_html=True)
-    
-    if st.session_state.user is None:
-        st.warning("⚠️ Please complete your profile first!")
-        st.stop()
-    user = st.session_state.user
-    
-    st.subheader("⚖️ Weight Progress")
-    
-    weight_history = get_weight_progress(user['user_id'])
-    
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        if len(weight_history) > 0:
-            fig = px.line(
-                weight_history, 
-                x='record_date', 
-                y='weight_kg',
-                title='Weight Over Time',
-                labels={'record_date': 'Date', 'weight_kg': 'Weight (kg)'}
-            )
-            fig.update_traces(line=dict(color='#4ECDC4', width=3))
-            st.plotly_chart(fig, use_container_width=True)
-            
-            start_weight = weight_history.iloc[0]['weight_kg']
-            latest_weight = weight_history.iloc[-1]['weight_kg']
-            change = latest_weight - start_weight
-            
-            if change < 0:
-                st.success(f"✅ You've lost {abs(change):.1f} kg since starting!")
-            elif change > 0:
-                st.info(f"📈 You've gained {change:.1f} kg since starting")
-            else:
-                st.info("Weight has remained stable")
-    
-    with col2:
-        new_weight = st.number_input("Update weight (kg)", min_value=30.0, max_value=200.0, value=float(user['weight_kg']))
-        if st.button("📝 Record Weight"):
-            update_weight(user['user_id'], new_weight)
-            st.success("Weight recorded!")
-            st.rerun()
-    
-    st.subheader("🔥 Calorie Trend Analysis")
-    
-    food_logs = get_food_logs(user['user_id'], 30)
-    activity_logs = get_activity_logs(user['user_id'], 30)
-    
-    if len(food_logs) > 0 or len(activity_logs) > 0:
-        daily_summary = {}
-        for _, row in food_logs.iterrows():
-            date_str = row['log_date']
-            if date_str not in daily_summary:
-                daily_summary[date_str] = {'in': 0, 'out': 0}
-            daily_summary[date_str]['in'] += row['calories']
-        
-        for _, row in activity_logs.iterrows():
-            date_str = row['log_date']
-            if date_str not in daily_summary:
-                daily_summary[date_str] = {'in': 0, 'out': 0}
-            daily_summary[date_str]['out'] += row['calories_burned']
-        
-        trend_data = pd.DataFrame([
-            {'Date': d, 'Calories In': v['in'], 'Calories Out': v['out'], 'Net': v['in'] - v['out']}
-            for d, v in sorted(daily_summary.items())
-        ])
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(name='Calories In', x=trend_data['Date'], y=trend_data['Calories In'], 
-                                 mode='lines+markers', line=dict(color='#FF6B6B', width=2)))
-        fig.add_trace(go.Scatter(name='Calories Out', x=trend_data['Date'], y=trend_data['Calories Out'], 
-                                 mode='lines+markers', line=dict(color='#4ECDC4', width=2)))
-        fig.add_trace(go.Scatter(name='Net', x=trend_data['Date'], y=trend_data['Net'], 
-                                 mode='lines+markers', line=dict(color='#FFE66D', width=2, dash='dash')))
-        fig.update_layout(title='Daily Calorie Trends', height=400, hovermode='x unified')
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Log your meals and activities to see progress charts!")
-
-    # -------------------------------------------------------------------------
-    # 🔮 Weight Forecasting (Machine Learning — Linear Regression)
-    # -------------------------------------------------------------------------
-    st.subheader("🔮 Weight Forecasting (ML — Linear Regression)")
-
-    forecast_col1, forecast_col2 = st.columns([1, 3])
-
-    with forecast_col1:
-        forecast_days = st.selectbox(
-            "Forecast Range",
-            options=[7, 14, 30],
-            format_func=lambda x: f"{x} days",
-            index=2,
-            key="forecast_horizon",
-        )
-
-    # Panggil fungsi forecast_weight
-    result = forecast_weight(user['user_id'], days=forecast_days)
-
-    if result['enough_data']:
-        forecast_df = result['forecast']
-        hist_df = result['history'].copy()
-        coef = result['model_coef']
-        r2 = result['model_r2']
-
-        # --- Kartu metrik ---
-        m1, m2, m3 = st.columns(3)
-
-        with m1:
-            direction = (
-                "📉 Decreasing"
-                if coef < 0
-                else ("📈 Increasing" if coef > 0 else "➡️ Stable")
-            )
-            st.metric(
-                "Daily Trend",
-                f"{abs(coef):.3f} kg/day",
-                delta=direction
-            )
-
-        with m2:
-            st.metric("R² Score", f"{r2:.4f}")
-
-        with m3:
-            pred_end = forecast_df.iloc[-1]['predicted_weight_kg']
-            st.metric(
-                f"Day {forecast_days} Prediction",
-                f"{pred_end:.1f} kg"
-            )
-
-        # --- Grafik gabungan: historis + prediksi ---
-        fig_fc = go.Figure()
-
-        # Garis historis
-        hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
-        fig_fc.add_trace(go.Scatter(
-            x=hist_df['record_date'],
-            y=hist_df['weight_kg'],
-            mode='lines+markers',
-            name='Historical Data',
-            line=dict(color='#4ECDC4', width=3),
-            marker=dict(size=7),
-        ))
-
-        # Titik penghubung (data terakhir → prediksi pertama)
-        bridge_dates = [
-            hist_df['record_date'].iloc[-1],
-            forecast_df['date'].iloc[0]
-        ]
-        bridge_weights = [
-            hist_df['weight_kg'].iloc[-1],
-            forecast_df['predicted_weight_kg'].iloc[0]
-        ]
-
-        fig_fc.add_trace(go.Scatter(
-            x=bridge_dates,
-            y=bridge_weights,
-            mode='lines',
-            line=dict(color='#FF6B6B', width=2, dash='dot'),
-            showlegend=False,
-        ))
-
-        # Garis prediksi
-        fig_fc.add_trace(go.Scatter(
-            x=forecast_df['date'],
-            y=forecast_df['predicted_weight_kg'],
-            mode='lines+markers',
-            name=f'Forecast ({forecast_days} Days)',
-            line=dict(color='#FF6B6B', width=3, dash='dot'),
-            marker=dict(size=6, symbol='diamond'),
-        ))
-
-        fig_fc.update_layout(
-            title=f'Weight History & Forecast ({forecast_days} Days Ahead)',
-            xaxis_title='Date',
-            yaxis_title='Weight (kg)',
-            height=450,
-            hovermode='x unified',
-            legend=dict(
-                orientation='h',
-                yanchor='bottom',
-                y=1.02,
-                xanchor='right',
-                x=1
-            ),
-        )
-
-        st.plotly_chart(fig_fc, use_container_width=True)
-
-        # --- Tabel data prediksi ---
-        with st.expander("📋 View Forecast Data Table"):
-            display_df = forecast_df.copy()
-            display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
-            display_df.columns = ['Date', 'Predicted Weight (kg)']
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-    else:
-        st.info(
-            "⚠️ Not enough weight records available (minimum 2 records required). "
-            "Please log your weight regularly to enable the forecasting feature."
-        )
-
 elif menu == "🤖 AI Chatbot":
     st.markdown('<div class="main-header">🤖 AI Fitness Coach</div>', unsafe_allow_html=True)
     
     # Gunakan session state user
     if st.session_state.user is None:
-        st.warning("⚠️ Please complete your profile first!")
+        st.markdown('''
+        <div class="warning-box">
+            <strong>⚠️ Profil Belum Lengkap!</strong><br>Silakan lengkapi profil Anda terlebih dahulu di menu 👤 Profile untuk dapat berkonsultasi dengan AI Fitness Coach.
+        </div>
+        ''', unsafe_allow_html=True)
         st.stop()
     user = st.session_state.user
     
@@ -1075,8 +1774,10 @@ elif menu == "🤖 AI Chatbot":
                 st.markdown(response)
         
         st.session_state.messages.append({"role": "assistant", "content": response})
-        save_chat_message(user['user_id'], prompt, response)
-        st.rerun()
+        try:
+            save_chat_message(user['user_id'], prompt, response)
+        except Exception:
+            pass
     
     # Quick questions sidebar
     with st.sidebar:
@@ -1116,12 +1817,24 @@ elif menu == "🤖 AI Chatbot":
                         st.markdown(response)
                 
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                save_chat_message(user['user_id'], q, response)
-                st.rerun()
+                try:
+                    save_chat_message(user['user_id'], q, response)
+                except Exception:
+                    pass
 
 elif menu == "📊 ML Predictor":
     st.markdown('<div class="main-header">📊 ML Calorie Burn Predictor</div>', unsafe_allow_html=True)
-    st.info("This ML model predicts calories burned during exercise.")
+    st.info("This machine learning model predicts calories burned during exercise based on your workout parameters.")
+    
+    # Workout parameter glossary for laypeople
+    with st.expander("📚 Penjelasan Parameter Latihan (Mengapa ini penting?)"):
+        st.markdown("""
+        Model Machine Learning (Random Forest) memprediksi kalori terbakar berdasarkan faktor berikut:
+        *   **Durasi (Workout Duration):** Semakin lama latihan, semakin banyak energi total yang dikeluarkan.
+        *   **Detak Jantung (Heart Rate):** Mengukur intensitas latihan secara langsung. Detak jantung lebih tinggi menunjukkan beban kerja jantung & otot yang lebih berat.
+        *   **Suhu Tubuh (Body Temperature):** Selama olahraga, metabolisme tubuh menghasilkan panas. Suhu tubuh meningkat seiring dengan tingginya pembakaran kalori.
+        *   **Berat Badan (Weight):** Memindahkan tubuh yang lebih berat membutuhkan usaha (energi) yang lebih besar, sehingga membakar kalori lebih banyak pada aktivitas yang sama.
+        """)
 
     @st.cache_resource
     def load_cached_calorie_model():
