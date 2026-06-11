@@ -561,3 +561,27 @@ def add_custom_food_to_dataset(food_name, calories_per_100g, protein_g, carbs_g,
             df_new.to_csv(csv_path, mode='a', header=False, index=False)
         except Exception as e:
             print(f"Error appending to food_dataset.csv: {e}")
+
+def delete_food_log(log_id):
+    """Delete a food log entry."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    p = get_placeholder()
+    try:
+        cursor.execute(f"DELETE FROM food_log WHERE log_id = {p}", (log_id,))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+def delete_activity_log(activity_id):
+    """Delete an activity log entry."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    p = get_placeholder()
+    try:
+        cursor.execute(f"DELETE FROM activity_log WHERE activity_id = {p}", (activity_id,))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()

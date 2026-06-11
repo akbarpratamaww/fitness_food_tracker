@@ -109,6 +109,24 @@ st.markdown("""
         background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.01) 100%);
     }
     
+    /* Enforce dark text in classifier intro and result boxes regardless of dark/light theme */
+    div.classification-result-box,
+    div.classification-result-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box h3,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box p,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box strong {
+        color: #1C1C1E !important;
+    }
+    
+    div.classification-intro-box,
+    div.classification-intro-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-intro-box,
+    div[data-testid="stMarkdownContainer"] div.classification-intro-box * {
+        color: #1e293b !important;
+    }
+    
     .main div.stButton > button {
         background: linear-gradient(135deg, #FF5722 0%, #FF2E93 100%) !important;
         color: white !important;
@@ -303,6 +321,10 @@ st.markdown("""
         cursor: pointer !important;
         transition: all 0.2s ease !important;
         white-space: nowrap !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0px !important;
     }
     div[data-testid="stRadio"] label[data-baseweb="radio"]:hover {
         background: rgba(255, 87, 34, 0.08) !important;
@@ -322,6 +344,8 @@ st.markdown("""
         opacity: 1 !important;
         font-size: 0.9rem !important;
         font-weight: 800 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     /* Active / selected option */
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"],
@@ -586,210 +610,49 @@ if 'prefilled_custom_name' not in st.session_state:
 # ==================== AUTH GATE ====================
 if st.session_state.user_id is None:
 
-    st.markdown('<div class="auth-logo"><h1>💪 FitTrack AI</h1><p>Smart Fitness & Food Tracker</p></div>', unsafe_allow_html=True)
+    # Split Layout
+    left_col, right_col = st.columns([1.1, 1], gap="large")
+    
+    with left_col:
+        st.markdown("""
+        <div style="padding: 2.5rem 0rem; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+            <div style="display: inline-block; background: rgba(255, 87, 34, 0.15); color: #FF5722; padding: 0.35rem 0.8rem; border-radius: 99px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; width: fit-content;">
+                ⚡ Smart Fitness Tracker
+            </div>
+            <h1 style="color: #FF5722; font-size: 2.8rem; font-weight: 800; margin: 0 0 0.5rem 0; letter-spacing: -1.5px; line-height: 1.1;">💪 FitTrack AI</h1>
+            <h3 style="font-weight: 600; font-size: 1.3rem; margin-top: 0; opacity: 0.9; line-height: 1.3;">Your fitness, your data, your journey.</h3>
+            <p style="opacity: 0.7; font-size: 0.92rem; line-height: 1.6; margin: 1rem 0 2rem 0;">
+                Log food, track workouts, predict calorie burn via machine learning, and chat with our AI coach to achieve your fitness goals.
+            </p>
+            <div style="background: rgba(255, 87, 34, 0.05); border-left: 4px solid #FF5722; padding: 1rem 1.2rem; border-radius: 10px;">
+                <span style="font-weight: 700; color: #FF5722; font-size: 1rem;">🔥 15K+ Active Users</span><br>
+                <span style="font-size: 0.82rem; opacity: 0.75;">Join the community making healthy habit changes daily.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    auth_tab1, auth_tab2 = st.tabs(["🔑 Login", "📝 Register"])
+    with right_col:
+        auth_tab1, auth_tab2 = st.tabs(["🔑 Login", "📝 Register"])
 
-    # -------- LOGIN TAB --------
-    with auth_tab1:
-        st.markdown('<br>', unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown('<div style="text-align: center; margin-bottom: 1.5rem;"><h3 style="margin:0; color:var(--text-color);">🔑 Welcome Back</h3><p style="color:#8E8E93; font-size:0.9rem; margin:0.3rem 0 0 0;">Login to your fitness tracker</p></div>', unsafe_allow_html=True)
-            with st.form("login_form"):
-                login_username = st.text_input("Username", placeholder="Masukkan username kamu")
-                login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
-                login_btn = st.form_submit_button("Login", use_container_width=True)
+        # -------- LOGIN TAB --------
+        with auth_tab1:
+            st.markdown('<br>', unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown('<div style="text-align: center; margin-bottom: 1.5rem;"><h3 style="margin:0; color:var(--text-color);">🔑 Welcome Back</h3><p style="color:#8E8E93; font-size:0.9rem; margin:0.3rem 0 0 0;">Login to your fitness tracker</p></div>', unsafe_allow_html=True)
+                with st.form("login_form"):
+                    login_username = st.text_input("Username", placeholder="Masukkan username kamu")
+                    login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
+                    login_btn = st.form_submit_button("Login", use_container_width=True)
 
-            if login_btn:
-                if not login_username or not login_password:
-                    st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
-                else:
-                    user_row = authenticate_user(login_username, login_password)
-                    if user_row is not None:
-                        st.session_state.user_id = int(user_row['user_id'])
-                        st.session_state.user = user_row.to_dict()
-                        token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                        controller.set('user_session', token, max_age=2592000)  # 30 days
-                        controller.set('user_logout', '', max_age=0)  # clear logout flag
-                        st.query_params.clear()
-                        st.session_state.active_menu = "Dashboard"
-                        st.session_state.chatbot = None
-                        st.session_state.messages = []
-                        st.session_state.greeting_sent = False
-                        st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
-                        time.sleep(0.8)
-                        st.rerun()
+                if login_btn:
+                    if not login_username or not login_password:
+                        st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
-
-    # -------- REGISTER TAB --------
-    with auth_tab2:
-        st.markdown('<br>', unsafe_allow_html=True)
-        with st.container(border=True):
-            if st.session_state.reg_step == 0:
-                st.markdown('<div class="wizard-title">💪 Welcome to FitTrack AI</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Ready for some wins? Start tracking, it\'s easy! Let\'s customize FitTrack AI for your goals.</div>', unsafe_allow_html=True)
-                
-                st.markdown("""
-                <div style="background-color: rgba(255, 87, 34, 0.05); padding: 1.2rem; border-radius: 16px; border-left: 4px solid #FF5722; font-size: 0.9rem; line-height: 1.5; margin-bottom: 2rem;">
-                    Menghitung TDEE, BMR, BMI, serta rekomendasi nutrisi harian kamu berdasarkan metode kebugaran yang terbukti secara ilmiah.
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button("Get Started", use_container_width=True, key="start_btn"):
-                    st.session_state.reg_step = 1
-                    st.rerun()
-
-            elif st.session_state.reg_step == 1:
-                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-title">👤 Buat Akun Baru</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Masukkan username dan password unik Anda.</div>', unsafe_allow_html=True)
-                
-                reg_username = st.text_input("Username*", value=st.session_state.reg_username, placeholder="Buat username unikmu")
-                reg_password = st.text_input("Password*", type="password", value=st.session_state.reg_password, placeholder="Min. 6 karakter")
-                reg_password2 = st.text_input("Konfirmasi Password*", type="password", placeholder="Ulangi password")
-                
-                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_1", use_container_width=True):
-                        st.session_state.reg_step = 0
-                        st.rerun()
-                with col2:
-                    if st.button("Next", key="next_1", use_container_width=True):
-                        if not reg_username or len(reg_username) < 3:
-                            st.error("❌ Username minimal 3 karakter.")
-                        elif username_exists(reg_username):
-                            st.error("❌ Username sudah digunakan, silakan pilih username lain.")
-                        elif not reg_password or len(reg_password) < 6:
-                            st.error("❌ Password minimal 6 karakter.")
-                        elif reg_password != reg_password2:
-                            st.error("❌ Konfirmasi password tidak cocok.")
-                        else:
-                            st.session_state.reg_username = reg_username
-                            st.session_state.reg_password = reg_password
-                            st.session_state.reg_step = 2
-                            st.rerun()
-
-            elif st.session_state.reg_step == 2:
-                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-title">🙋‍♂️ Siapa Nama Anda?</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Beritahu kami sedikit informasi dasar tentang diri Anda.</div>', unsafe_allow_html=True)
-                
-                reg_name = st.text_input("Nama Lengkap*", value=st.session_state.reg_name, placeholder="Nama kamu")
-                reg_age = st.number_input("Usia (tahun)*", min_value=15, max_value=100, value=int(st.session_state.reg_age))
-                reg_gender = st.selectbox("Jenis Kelamin*", ["Male", "Female"], index=0 if st.session_state.reg_gender == "Male" else 1)
-                
-                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_2", use_container_width=True):
-                        st.session_state.reg_step = 1
-                        st.rerun()
-                with col2:
-                    if st.button("Next", key="next_2", use_container_width=True):
-                        if not reg_name.strip():
-                            st.error("❌ Nama lengkap wajib diisi.")
-                        else:
-                            st.session_state.reg_name = reg_name
-                            st.session_state.reg_age = reg_age
-                            st.session_state.reg_gender = reg_gender
-                            st.session_state.reg_step = 3
-                            st.rerun()
-
-            elif st.session_state.reg_step == 3:
-                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-title">📏 Ukuran Tubuh Anda</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Masukkan tinggi dan berat badan terbaru Anda untuk menghitung BMI secara akurat.</div>', unsafe_allow_html=True)
-                
-                reg_height = st.number_input("Tinggi Badan (cm)*", min_value=100, max_value=250, value=int(st.session_state.reg_height))
-                reg_weight = st.number_input("Berat Badan (kg)*", min_value=30.0, max_value=200.0, value=float(st.session_state.reg_weight), step=0.5)
-                
-                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_3", use_container_width=True):
-                        st.session_state.reg_step = 2
-                        st.rerun()
-                with col2:
-                    if st.button("Next", key="next_3", use_container_width=True):
-                        st.session_state.reg_height = reg_height
-                        st.session_state.reg_weight = reg_weight
-                        st.session_state.reg_step = 4
-                        st.rerun()
-
-            elif st.session_state.reg_step == 4:
-                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-title">🏃‍♂️ Tingkat Aktivitas & Tujuan</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Sesuaikan target energi berdasarkan tingkat aktivitas fisik dan goal Anda.</div>', unsafe_allow_html=True)
-                
-                reg_activity = st.selectbox("Tingkat Aktivitas*", list(ACTIVITY_MULTIPLIERS.keys()), index=list(ACTIVITY_MULTIPLIERS.keys()).index(st.session_state.reg_activity))
-                reg_goal = st.selectbox("Tujuan Kebugaran*", list(FITNESS_GOALS.keys()), index=list(FITNESS_GOALS.keys()).index(st.session_state.reg_goal))
-                
-                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_4", use_container_width=True):
-                        st.session_state.reg_step = 3
-                        st.rerun()
-                with col2:
-                    if st.button("Next", key="next_4", use_container_width=True):
-                        st.session_state.reg_activity = reg_activity
-                        st.session_state.reg_goal = reg_goal
-                        st.session_state.reg_step = 5
-                        st.rerun()
-
-            elif st.session_state.reg_step == 5:
-                st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div></div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-title">🎉 Analisis & Ringkasan Profil</div>', unsafe_allow_html=True)
-                st.markdown('<div class="wizard-subtitle">Berikut estimasi perhitungan kesehatan Anda. Klik tombol di bawah untuk membuat akun!</div>', unsafe_allow_html=True)
-                
-                bmr = calculate_bmr(st.session_state.reg_weight, st.session_state.reg_height, st.session_state.reg_age, st.session_state.reg_gender)
-                tdee = calculate_tdee(bmr, st.session_state.reg_activity)
-                daily_target = calculate_daily_target(tdee, st.session_state.reg_goal)
-                bmi = calculate_bmi(st.session_state.reg_weight, st.session_state.reg_height)
-                bmi_cat = get_bmi_category(bmi)
-                
-                st.markdown(f"""
-                <div style="background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.15); padding: 1.2rem; border-radius: 16px; margin-bottom: 1.5rem;">
-                    <h5 style="margin-top:0; color:#FF5722;">📊 Hasil Analisis Tubuh</h5>
-                    <table style="width:100%; font-size:0.9rem; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">BMR</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{bmr:.0f} kcal/day</td></tr>
-                        <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">TDEE</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{tdee:.0f} kcal/day</td></tr>
-                        <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">Target Kalori</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FF2E93;">{daily_target:.0f} kcal/day</td></tr>
-                        <tr><td style="padding:6px 0; color:#8E8E93;">BMI (IMT)</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#06B6D4;">{bmi:.1f} ({bmi_cat})</td></tr>
-                    </table>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_5", use_container_width=True):
-                        st.session_state.reg_step = 4
-                        st.rerun()
-                with col2:
-                    if st.button("Buat Akun & Mulai!", key="submit_btn", use_container_width=True):
-                        result = register_user(st.session_state.reg_username, st.session_state.reg_password, {
-                            'name': st.session_state.reg_name, 
-                            'age': st.session_state.reg_age, 
-                            'gender': st.session_state.reg_gender,
-                            'height_cm': st.session_state.reg_height, 
-                            'weight_kg': st.session_state.reg_weight,
-                            'activity_level': st.session_state.reg_activity, 
-                            'fitness_goal': st.session_state.reg_goal,
-                            'bmr': bmr, 
-                            'tdee': tdee, 
-                            'daily_target_calories': daily_target
-                        })
-                        
-                        if result['success']:
-                            new_uid = result['user_id']
-                            update_weight(new_uid, st.session_state.reg_weight)
-                            user_row = get_user(new_uid)
-                            st.session_state.user_id = new_uid
+                        user_row = authenticate_user(login_username, login_password)
+                        if user_row is not None:
+                            st.session_state.user_id = int(user_row['user_id'])
                             st.session_state.user = user_row.to_dict()
-                            token = f"{new_uid}:{sign_user_id(new_uid)}"
+                            token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                             controller.set('user_session', token, max_age=2592000)  # 30 days
                             controller.set('user_logout', '', max_age=0)  # clear logout flag
                             st.query_params.clear()
@@ -797,13 +660,194 @@ if st.session_state.user_id is None:
                             st.session_state.chatbot = None
                             st.session_state.messages = []
                             st.session_state.greeting_sent = False
-                            st.session_state.reg_step = 0
-                            st.success(f"🎉 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
-                            st.balloons()
-                            time.sleep(1)
+                            st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                            time.sleep(0.8)
                             st.rerun()
                         else:
-                            st.error(f"❌ {result['error']}")
+                            st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
+
+        # -------- REGISTER TAB --------
+        with auth_tab2:
+            st.markdown('<br>', unsafe_allow_html=True)
+            with st.container(border=True):
+                if st.session_state.reg_step == 0:
+                    st.markdown('<div class="wizard-title">💪 Welcome to FitTrack AI</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Ready for some wins? Start tracking, it\'s easy! Let\'s customize FitTrack AI for your goals.</div>', unsafe_allow_html=True)
+                    
+                    st.markdown("""
+                    <div style="background-color: rgba(255, 87, 34, 0.05); padding: 1.2rem; border-radius: 16px; border-left: 4px solid #FF5722; font-size: 0.9rem; line-height: 1.5; margin-bottom: 2rem;">
+                        Menghitung TDEE, BMR, BMI, serta rekomendasi nutrisi harian kamu berdasarkan metode kebugaran yang terbukti secara ilmiah.
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("Get Started", use_container_width=True, key="start_btn"):
+                        st.session_state.reg_step = 1
+                        st.rerun()
+
+                elif st.session_state.reg_step == 1:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">👤 Buat Akun Baru</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Masukkan username dan password unik Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_username = st.text_input("Username*", value=st.session_state.reg_username, placeholder="Buat username unikmu")
+                    reg_password = st.text_input("Password*", type="password", value=st.session_state.reg_password, placeholder="Min. 6 karakter")
+                    reg_password2 = st.text_input("Konfirmasi Password*", type="password", placeholder="Ulangi password")
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_1", use_container_width=True):
+                            st.session_state.reg_step = 0
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_1", use_container_width=True):
+                            if not reg_username or len(reg_username) < 3:
+                                st.error("❌ Username minimal 3 karakter.")
+                            elif username_exists(reg_username):
+                                st.error("❌ Username sudah digunakan, silakan pilih username lain.")
+                            elif not reg_password or len(reg_password) < 6:
+                                st.error("❌ Password minimal 6 karakter.")
+                            elif reg_password != reg_password2:
+                                st.error("❌ Konfirmasi password tidak cocok.")
+                            else:
+                                st.session_state.reg_username = reg_username
+                                st.session_state.reg_password = reg_password
+                                st.session_state.reg_step = 2
+                                st.rerun()
+
+                elif st.session_state.reg_step == 2:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🙋‍♂️ Siapa Nama Anda?</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Beritahu kami sedikit informasi dasar tentang diri Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_name = st.text_input("Nama Lengkap*", value=st.session_state.reg_name, placeholder="Nama kamu")
+                    reg_age = st.number_input("Usia (tahun)*", min_value=15, max_value=100, value=int(st.session_state.reg_age))
+                    reg_gender = st.selectbox("Jenis Kelamin*", ["Male", "Female"], index=0 if st.session_state.reg_gender == "Male" else 1)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_2", use_container_width=True):
+                            st.session_state.reg_step = 1
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_2", use_container_width=True):
+                            if not reg_name.strip():
+                                st.error("❌ Nama lengkap wajib diisi.")
+                            else:
+                                st.session_state.reg_name = reg_name
+                                st.session_state.reg_age = reg_age
+                                st.session_state.reg_gender = reg_gender
+                                st.session_state.reg_step = 3
+                                st.rerun()
+
+                elif st.session_state.reg_step == 3:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">📏 Ukuran Tubuh Anda</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Masukkan tinggi dan berat badan terbaru Anda untuk menghitung BMI secara akurat.</div>', unsafe_allow_html=True)
+                    
+                    reg_height = st.number_input("Tinggi Badan (cm)*", min_value=100, max_value=250, value=int(st.session_state.reg_height))
+                    reg_weight = st.number_input("Berat Badan (kg)*", min_value=30.0, max_value=200.0, value=float(st.session_state.reg_weight), step=0.5)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_3", use_container_width=True):
+                            st.session_state.reg_step = 2
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_3", use_container_width=True):
+                            st.session_state.reg_height = reg_height
+                            st.session_state.reg_weight = reg_weight
+                            st.session_state.reg_step = 4
+                            st.rerun()
+
+                elif st.session_state.reg_step == 4:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🏃‍♂️ Tingkat Aktivitas & Tujuan</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Sesuaikan target energi berdasarkan tingkat aktivitas fisik dan goal Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_activity = st.selectbox("Tingkat Aktivitas*", list(ACTIVITY_MULTIPLIERS.keys()), index=list(ACTIVITY_MULTIPLIERS.keys()).index(st.session_state.reg_activity))
+                    reg_goal = st.selectbox("Tujuan Kebugaran*", list(FITNESS_GOALS.keys()), index=list(FITNESS_GOALS.keys()).index(st.session_state.reg_goal))
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_4", use_container_width=True):
+                            st.session_state.reg_step = 3
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_4", use_container_width=True):
+                            st.session_state.reg_activity = reg_activity
+                            st.session_state.reg_goal = reg_goal
+                            st.session_state.reg_step = 5
+                            st.rerun()
+
+                elif st.session_state.reg_step == 5:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🎉 Analisis & Ringkasan Profil</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Berikut estimasi perhitungan kesehatan Anda. Klik tombol di bawah untuk membuat akun!</div>', unsafe_allow_html=True)
+                    
+                    bmr = calculate_bmr(st.session_state.reg_weight, st.session_state.reg_height, st.session_state.reg_age, st.session_state.reg_gender)
+                    tdee = calculate_tdee(bmr, st.session_state.reg_activity)
+                    daily_target = calculate_daily_target(tdee, st.session_state.reg_goal)
+                    bmi = calculate_bmi(st.session_state.reg_weight, st.session_state.reg_height)
+                    bmi_cat = get_bmi_category(bmi)
+                    
+                    st.markdown(f"""
+                    <div style="background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.15); padding: 1.2rem; border-radius: 16px; margin-bottom: 1.5rem;">
+                        <h5 style="margin-top:0; color:#FF5722;">📊 Hasil Analisis Tubuh</h5>
+                        <table style="width:100%; font-size:0.9rem; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">BMR</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{bmr:.0f} kcal/day</td></tr>
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">TDEE</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{tdee:.0f} kcal/day</td></tr>
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">Target Kalori</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FF2E93;">{daily_target:.0f} kcal/day</td></tr>
+                            <tr><td style="padding:6px 0; color:#8E8E93;">BMI (IMT)</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#06B6D4;">{bmi:.1f} ({bmi_cat})</td></tr>
+                        </table>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_5", use_container_width=True):
+                            st.session_state.reg_step = 4
+                            st.rerun()
+                    with col2:
+                        if st.button("Buat Akun & Mulai!", key="submit_btn", use_container_width=True):
+                            result = register_user(st.session_state.reg_username, st.session_state.reg_password, {
+                                'name': st.session_state.reg_name, 
+                                'age': st.session_state.reg_age, 
+                                'gender': st.session_state.reg_gender,
+                                'height_cm': st.session_state.reg_height, 
+                                'weight_kg': st.session_state.reg_weight,
+                                'activity_level': st.session_state.reg_activity, 
+                                'fitness_goal': st.session_state.reg_goal,
+                                'bmr': bmr, 
+                                'tdee': tdee, 
+                                'daily_target_calories': daily_target
+                            })
+                            
+                            if result['success']:
+                                new_uid = result['user_id']
+                                update_weight(new_uid, st.session_state.reg_weight)
+                                user_row = get_user(new_uid)
+                                st.session_state.user_id = new_uid
+                                st.session_state.user = user_row.to_dict()
+                                token = f"{new_uid}:{sign_user_id(new_uid)}"
+                                controller.set('user_session', token, max_age=2592000)  # 30 days
+                                controller.set('user_logout', '', max_age=0)  # clear logout flag
+                                st.query_params.clear()
+                                st.session_state.active_menu = "Dashboard"
+                                st.session_state.chatbot = None
+                                st.session_state.messages = []
+                                st.session_state.greeting_sent = False
+                                st.session_state.reg_step = 0
+                                st.success(f"🎉 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
+                                st.balloons()
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {result['error']}")
 
     st.stop()  # Hentikan render konten di bawah jika belum login
 
@@ -1012,7 +1056,7 @@ if menu == "Dashboard":
                     font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
                     margin=dict(l=20, r=20, t=50, b=20)
                 )
-                fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
+                fig.update_xaxes(title='Date', type='category', gridcolor='rgba(255,255,255,0.05)')
                 fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
                 st.plotly_chart(fig, use_container_width=True)
                 
@@ -1057,7 +1101,7 @@ if menu == "Dashboard":
                         font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
                         margin=dict(l=20, r=20, t=50, b=20)
                     )
-                    fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
+                    fig_trend.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
                     fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
                     st.plotly_chart(fig_trend, use_container_width=True)
                 else:
@@ -1745,7 +1789,7 @@ elif menu == "Activity Log":
 elif menu == "Fitness Level Classifier":
     st.markdown('<div class="main-header">Klasifikasi Tingkat Kebugaran</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+    <div class="classification-intro-box" style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1e293b;">
         Masukkan data fisik dan hasil tes kebugaran Anda. Sistem akan memprediksi tingkat kebugaran 
         menggunakan algoritma Machine Learning: <strong>Random Forest</strong>.
     </div>
@@ -1826,9 +1870,9 @@ elif menu == "Fitness Level Classifier":
                         icon = "⚠️"
                     
                     st.markdown(f"""
-                    <div style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
-                        <h3 style="margin: 0 0 0.5rem 0;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
-                        <p style="margin: 0;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
+                    <div class="classification-result-box" style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0; color: #1C1C1E !important;">
+                        <h3 style="margin: 0 0 0.5rem 0; color: #1C1C1E !important;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
+                        <p style="margin: 0; color: #1C1C1E !important;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
                     </div>
                     """, unsafe_allow_html=True)
                     
