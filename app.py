@@ -860,7 +860,7 @@ if logged_user is None:
 
 menu_options = [
     "Dashboard", "Profile", "Food Log", "Activity Log", "Fitness Level Classifier",
-    "AI Chatbot", "About"
+    "AI Chatbot", "About", "Logout"
 ]
 
 # ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
@@ -873,6 +873,19 @@ selected_menu = st.radio(
     key="main_nav_radio",
     label_visibility="collapsed"
 )
+
+# Handle logout immediately if selected from navbar
+if selected_menu == "Logout":
+    controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)        # clear session cookie
+    keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
+    for key in keys_to_delete:
+        del st.session_state[key]
+    st.session_state.logged_out = True   # synchronous guard for next rerun
+    st.session_state.user_id = None
+    st.query_params.clear()
+    time.sleep(1.0)  # give browser time to write cookies
+    st.rerun()
+
 # Only update active_menu if user explicitly changed the radio (not during form submits)
 if selected_menu != st.session_state.active_menu:
     st.session_state.active_menu = selected_menu
@@ -909,23 +922,7 @@ if menu == "Dashboard":
         st.session_state.user_id = user['user_id']
         st.session_state.user = user
         
-        dash_col1, dash_col2 = st.columns([5, 1])
-        with dash_col1:
-            st.markdown(f"### Welcome back, {user['name']}! 👋")
-        with dash_col2:
-            if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)        # clear session cookie
-                # Clear user-specific session state but KEEP logged_out flag
-                # so the IMMEDIATE st.rerun() below is also protected
-                # (the cookie write is async and may not be ready in time)
-                keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
-                for key in keys_to_delete:
-                    del st.session_state[key]
-                st.session_state.logged_out = True   # synchronous guard for next rerun
-                st.session_state.user_id = None
-                st.query_params.clear()
-                time.sleep(1.0)  # give browser time to write cookies
-                st.rerun()
+        st.markdown(f"### Welcome back, {user['name']}! 👋")
         
         # Quick terminology guide for laypeople
         with st.expander("ℹ️ Panduan Singkat Istilah Kesehatan (BMR, TDEE, BMI, Defisit/Surplus)"):
@@ -940,7 +937,15 @@ if menu == "Dashboard":
         
         # Today's summary & Alerts container card
         with st.container(border=True):
-            st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
+            r1_title_col, r1_btn_col = st.columns([5, 1.2])
+            with r1_title_col:
+                st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
+            with r1_btn_col:
+                if st.button("Reset Hari Ini", key="reset_daily_btn", use_container_width=True):
+                    reset_today_logs(user['user_id'])
+                    st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
+                    time.sleep(0.6)
+                    st.rerun()
             col1, col2, col3, col4 = st.columns(4)
             
             calories_in, calories_out = get_today_summary(user['user_id'])
@@ -1010,14 +1015,7 @@ if menu == "Dashboard":
                 </div>
                 ''', unsafe_allow_html=True)
 
-        # Button to reset daily calories
-        col_btn1, col_btn2 = st.columns([5, 1.2])
-        with col_btn2:
-            if st.button("Reset Hari Ini", key="reset_daily_btn", use_container_width=True):
-                reset_today_logs(user['user_id'])
-                st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
-                time.sleep(0.6)
-                st.rerun()
+
 
         # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
         with st.container(border=True):
