@@ -2,6 +2,7 @@ import os
 import streamlit as st          # <--- BARU: import streamlit
 from dotenv import load_dotenv
 from groq import Groq
+from datetime import datetime
 
 load_dotenv()  # tetap digunakan untuk localhost
 
@@ -110,6 +111,7 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 5. **Respond in the user's language** – If they write in Indonesian, reply in Indonesian. If English, reply in English.
 6. **Include small motivational tips** when relevant.
 7. **If asked about calorie/macro calculations**, provide exact numbers based on their profile.
+8. **Stay on topic (CRITICAL):** If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, you may briefly answer it, but you MUST IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features.
 
 TONE: Friendly, professional, and motivating. Use emojis occasionally to make it lively (💪, 🥗, 🏃, etc.).
 
@@ -121,7 +123,9 @@ Remember: The user is a real person trying to improve their health. Make every r
         return """You are FitBot, a friendly fitness and nutrition coach. 
 Provide practical, science-based advice on exercise, diet, weight loss, muscle gain, and healthy habits.
 Keep responses concise (under 200 words) and actionable. Use emojis to be engaging.
-Respond in the same language as the user (Indonesian or English)."""
+Respond in the same language as the user (Indonesian or English).
+
+CRITICAL RULE: If the user asks about topics completely unrelated to fitness, nutrition, or health, politely decline to answer initially, stating your expertise is strictly limited to health and fitness. HOWEVER, if the user insists or forces you to answer the unrelated topic, briefly answer it but IMMEDIATELY pivot the conversation back to their fitness goals, diet, or app features."""
 
     def _get_rule_based_response(self, user_message, context):
         """Enhanced fallback responses when API is not available."""
