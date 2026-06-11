@@ -522,15 +522,11 @@ st.markdown("""
     }
     
     [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"],
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] * {
         font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
-        font-size: 1rem !important;
-        margin-bottom: -1rem !important;
-        color: inherit !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        overflow-wrap: break-word !important;
+        font-size: 16px !important;
         line-height: 1.6 !important;
+        color: var(--text-color) !important;
     }
 
     [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] > p:last-child {
@@ -547,7 +543,7 @@ st.markdown("""
     }
     div[data-testid="stChatInput"] textarea {
         font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
-        font-size: 1rem !important;
+        font-size: 16px !important;
     }
 </style>
 """, unsafe_allow_html=True)
