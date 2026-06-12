@@ -31,8 +31,7 @@ def get_connection():
         if mysql_pool is None:
             mysql_pool = mysql.connector.pooling.MySQLConnectionPool(
                 pool_name="fitness_pool",
-                pool_size=5,
-                pool_reset_session=True,
+                pool_size=10,
                 host=os.getenv("DB_HOST", "localhost"),
                 user=os.getenv("DB_USER", "root"),
                 password=os.getenv("DB_PASSWORD", ""),
