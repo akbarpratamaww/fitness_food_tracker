@@ -586,9 +586,15 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
 # Recover session from cookie.
-# Single-layer guard against stale cookie auto-login on the IMMEDIATE rerun after logout
-# (the cookie write is async and may not be ready yet)
-if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
+# Guard against stale cookie auto-login after logout.
+# We use BOTH session_state (in-memory) AND a query param (?logged_out=1)
+# because session_state is wiped on a full browser reload in Streamlit Cloud.
+_just_logged_out = (
+    st.session_state.get('logged_out', False)
+    or st.query_params.get('logged_out') == '1'
+)
+
+if st.session_state.user_id is None and not _just_logged_out:
     try:
         token = controller.get('user_session')
         if token and token.strip():
@@ -697,6 +703,7 @@ if st.session_state.user_id is None:
                             token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
                             controller.set('user_session', token, max_age=2592000)  # 30 days
                             st.session_state.logged_out = False  # reset logged out state
+                            # Clear the logged_out query param on successful login
                             st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
@@ -999,13 +1006,20 @@ def logout_confirm_dialog():
     col_yes, col_no = st.columns(2)
     with col_yes:
         if st.button("Ya, Keluar", use_container_width=True, key="dialog_confirm_logout"):
-            controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
-            keys_to_delete = [k for k in st.session_state.keys() if k != 'logged_out']
+            # Remove cookie properly (more reliable than setting empty/expired value)
+            try:
+                controller.remove('user_session')
+            except Exception:
+                # Fallback: overwrite with expired cookie
+                controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
+            # Clear all session state
+            keys_to_delete = list(st.session_state.keys())
             for key in keys_to_delete:
                 del st.session_state[key]
             st.session_state.logged_out = True
             st.session_state.user_id = None
-            st.query_params.clear()
+            # Set query param as a persistent logout flag that survives full page reload
+            st.query_params['logged_out'] = '1'
             time.sleep(0.5)
             st.rerun()
     with col_no:
