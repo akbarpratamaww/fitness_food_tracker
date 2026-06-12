@@ -1227,6 +1227,11 @@ if menu == "Dashboard":
                 food_logs = get_food_logs(user['user_id'], 7)
                 activity_logs = get_activity_logs(user['user_id'], 7)
                 
+                if len(food_logs) > 0:
+                    food_logs['log_date'] = food_logs['log_date'].astype(str)
+                if len(activity_logs) > 0:
+                    activity_logs['log_date'] = activity_logs['log_date'].astype(str)
+                    
                 dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
                 daily_in = []
                 daily_out = []
@@ -1259,6 +1264,11 @@ if menu == "Dashboard":
                 food_logs_30 = get_food_logs(user['user_id'], 30)
                 activity_logs_30 = get_activity_logs(user['user_id'], 30)
                 
+                if len(food_logs_30) > 0:
+                    food_logs_30['log_date'] = food_logs_30['log_date'].astype(str)
+                if len(activity_logs_30) > 0:
+                    activity_logs_30['log_date'] = activity_logs_30['log_date'].astype(str)
+                    
                 if len(food_logs_30) > 0 or len(activity_logs_30) > 0:
                     daily_summary = {}
                     for _, row in food_logs_30.iterrows():
