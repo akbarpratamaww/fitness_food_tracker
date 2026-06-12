@@ -288,7 +288,11 @@ st.markdown("""
         display: none !important;
     }
     
-    /* Ensure parent container is on top and has no stacking issues */
+    /* ═══════════════════════════════════════════════════════
+       APPLE LIQUID GLASS NAVBAR
+       ═══════════════════════════════════════════════════════ */
+
+    /* Lift the stRadio element-container to fixed position */
     div[data-testid="element-container"]:has(div[data-testid="stRadio"]),
     div.element-container:has(div[data-testid="stRadio"]) {
         position: fixed !important;
@@ -299,74 +303,165 @@ st.markdown("""
         height: 0px !important;
         overflow: visible !important;
     }
-    
-    /* ── Navigation Radio Navbar ── */
+
+    /* ── Outer glass pill container ── */
     div[data-testid="stRadio"] {
         position: fixed !important;
-        top: 15px !important;
+        top: 14px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 999999999 !important;
-        background: color-mix(in srgb, var(--background-color) 70%, transparent) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        opacity: 1 !important;
-        border: 1px solid rgba(128, 128, 128, 0.18) !important;
-        border-radius: 16px !important;
-        padding: 0.5rem 0.8rem !important;
+
+        /* Multi-layer glass background */
+        background:
+            linear-gradient(
+                135deg,
+                rgba(255,255,255,0.18) 0%,
+                rgba(255,255,255,0.06) 40%,
+                rgba(255,255,255,0.10) 100%
+            ) !important;
+        backdrop-filter: blur(28px) saturate(180%) brightness(1.08) !important;
+        -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(1.08) !important;
+
+        /* Layered border for specular rim light */
+        border: 1px solid rgba(255,255,255,0.38) !important;
+        border-bottom-color: rgba(255,255,255,0.12) !important;
+        border-radius: 22px !important;
+
+        padding: 6px 8px !important;
         max-width: fit-content !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+
+        /* Deep shadow + inner glow */
+        box-shadow:
+            0 2px 0 rgba(255,255,255,0.55) inset,
+            0 -1px 0 rgba(0,0,0,0.08) inset,
+            0 8px 32px rgba(0,0,0,0.22),
+            0 2px 8px rgba(0,0,0,0.12),
+            0 0 0 0.5px rgba(0,0,0,0.06) !important;
+
+        /* Specular top-edge shimmer */
+        outline: none !important;
+        overflow: visible !important;
     }
-    /* Make options sit in a horizontal flex row */
+
+    /* Shimmer pseudo-reflection on the container — injected via JS */
+    .lg-navbar-shimmer {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 50%;
+        background: linear-gradient(
+            180deg,
+            rgba(255,255,255,0.22) 0%,
+            rgba(255,255,255,0.00) 100%
+        );
+        border-radius: 22px 22px 0 0;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* ── Flex row of options ── */
     div[data-testid="stRadio"] > div[role="radiogroup"],
     div[data-testid="stRadio"] > div:last-child {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 6px !important;
+        gap: 4px !important;
         align-items: center !important;
         justify-content: center !important;
+        position: relative !important;
     }
-    /* Each option wrapper */
+
+    /* ── Individual nav pill ── */
     div[data-testid="stRadio"] label[data-baseweb="radio"] {
-        padding: 0.42rem 0.85rem !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(128, 128, 128, 0.25) !important;
+        padding: 6px 14px !important;
+        border-radius: 14px !important;
+        border: 1px solid transparent !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
         white-space: nowrap !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 0px !important;
+        gap: 0 !important;
+        position: relative !important;
+        transition:
+            background 0.25s cubic-bezier(0.34,1.56,0.64,1),
+            border-color 0.25s ease,
+            transform 0.2s cubic-bezier(0.34,1.56,0.64,1),
+            box-shadow 0.25s ease !important;
+        overflow: hidden !important;
+        background: transparent !important;
     }
+
+    /* Inner specular highlight on each pill */
+    div[data-testid="stRadio"] label[data-baseweb="radio"]::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important; left: 0 !important; right: 0 !important;
+        height: 45% !important;
+        background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 100%) !important;
+        border-radius: 14px 14px 0 0 !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+    }
+
+    /* Hover state — gentle glass tint + slight lift */
     div[data-testid="stRadio"] label[data-baseweb="radio"]:hover {
-        background: rgba(255, 87, 34, 0.08) !important;
-        border-color: rgba(255, 87, 34, 0.2) !important;
+        background: rgba(255,255,255,0.13) !important;
+        border-color: rgba(255,255,255,0.35) !important;
+        transform: translateY(-1px) scale(1.03) !important;
+        box-shadow:
+            0 4px 14px rgba(0,0,0,0.12),
+            0 1px 0 rgba(255,255,255,0.4) inset !important;
     }
-    /* Hide the radio circle dot */
+
+    /* ── Hide the native radio dot ── */
     div[data-testid="stRadio"] [data-testid="stRadioOption"] > div:first-child,
     div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
         display: none !important;
     }
-    /* Option text colour */
+
+    /* ── Label text ── */
     div[data-testid="stRadio"] label[data-baseweb="radio"] span,
     div[data-testid="stRadio"] label[data-baseweb="radio"] p,
     div[data-testid="stRadio"] label[data-baseweb="radio"] div,
     div[data-testid="stRadio"] label[data-baseweb="radio"] * {
-        color: var(--text-color) !important;
-        opacity: 1 !important;
-        font-size: 0.9rem !important;
-        font-weight: 800 !important;
+        color: rgba(255,255,255,0.82) !important;
+        font-size: 0.83rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.01em !important;
         margin: 0 !important;
         padding: 0 !important;
+        position: relative !important;
+        z-index: 2 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
+        transition: color 0.2s ease !important;
     }
-    /* Active / selected option */
+
+    /* ── ACTIVE selected pill — liquid glass filled ── */
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"],
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
-        background: rgba(255, 87, 34, 0.15) !important;
-        border-color: rgba(255, 87, 34, 0.35) !important;
+        background:
+            linear-gradient(
+                135deg,
+                rgba(255,87,34,0.55) 0%,
+                rgba(255,46,147,0.45) 100%
+            ) !important;
+        border-color: rgba(255,130,80,0.70) !important;
+        box-shadow:
+            0 2px 0 rgba(255,255,255,0.35) inset,
+            0 -1px 0 rgba(0,0,0,0.12) inset,
+            0 6px 20px rgba(255,87,34,0.40),
+            0 2px 6px rgba(255,87,34,0.25) !important;
+        transform: translateY(-1px) !important;
     }
+
+    /* Active pill specular inner top shine */
+    div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"]::before,
+    div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked)::before {
+        background: linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0) 100%) !important;
+    }
+
+    /* Active text — white + glow */
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] span,
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] p,
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"] div,
@@ -375,37 +470,47 @@ st.markdown("""
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) p,
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) div,
     div[data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) * {
-        color: #FF5722 !important;
-        font-weight: 900 !important;
-        opacity: 1 !important;
-    }
-    @media (max-width: 768px) {
-        div[data-testid="stRadio"] label[data-baseweb="radio"] {
-            font-size: 0.78rem !important;
-            padding: 0.32rem 0.55rem !important;
-        }
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        text-shadow: 0 0 12px rgba(255,140,80,0.8), 0 1px 3px rgba(0,0,0,0.3) !important;
     }
 
-    /* Style Logout button (last item) in navbar to be red */
-    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child,
-    div[data-testid="stRadio"] > div:last-child label:last-child {
-        border-color: rgba(239, 68, 68, 0.4) !important;
-        background: rgba(239, 68, 68, 0.06) !important;
-    }
-    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child:hover,
-    div[data-testid="stRadio"] > div:last-child label:last-child:hover {
-        background: rgba(239, 68, 68, 0.15) !important;
-        border-color: rgba(239, 68, 68, 0.65) !important;
+    /* ── Logout pill — red tint ── */
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child {
+        border-color: rgba(239,68,68,0.30) !important;
     }
     div[data-testid="stRadio"] div[role="radiogroup"] label:last-child span,
     div[data-testid="stRadio"] div[role="radiogroup"] label:last-child p,
     div[data-testid="stRadio"] div[role="radiogroup"] label:last-child div,
-    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child *,
-    div[data-testid="stRadio"] > div:last-child label:last-child span,
-    div[data-testid="stRadio"] > div:last-child label:last-child p,
-    div[data-testid="stRadio"] > div:last-child label:last-child div,
-    div[data-testid="stRadio"] > div:last-child label:last-child * {
-        color: #EF4444 !important;
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child * {
+        color: rgba(255,120,120,0.92) !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child:hover {
+        background:
+            linear-gradient(
+                135deg,
+                rgba(239,68,68,0.35) 0%,
+                rgba(220,20,60,0.25) 100%
+            ) !important;
+        border-color: rgba(239,68,68,0.65) !important;
+        box-shadow:
+            0 2px 0 rgba(255,255,255,0.28) inset,
+            0 5px 18px rgba(239,68,68,0.35) !important;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+        div[data-testid="stRadio"] {
+            padding: 4px 6px !important;
+            border-radius: 18px !important;
+        }
+        div[data-testid="stRadio"] label[data-baseweb="radio"] {
+            padding: 5px 9px !important;
+        }
+        div[data-testid="stRadio"] label[data-baseweb="radio"] span,
+        div[data-testid="stRadio"] label[data-baseweb="radio"] * {
+            font-size: 0.72rem !important;
+        }
     }
  
     /* Thin yellow reset button — applied via JS class injection */
@@ -1101,6 +1206,69 @@ selected_menu = st.radio(
     key="main_nav_radio",
     label_visibility="collapsed"
 )
+
+# ── Liquid Glass JS: shimmer overlay + active pulse animation ──
+st.markdown("""
+<script>
+(function applyLiquidGlass() {
+    const doc = window.parent.document;
+
+    function inject() {
+        const navRadio = doc.querySelector('[data-testid="stRadio"]');
+        if (!navRadio) return;
+
+        // Inject shimmer overlay if not already present
+        if (!navRadio.querySelector('.lg-navbar-shimmer')) {
+            const shimmer = doc.createElement('div');
+            shimmer.className = 'lg-navbar-shimmer';
+            navRadio.style.position = 'relative';
+            navRadio.insertBefore(shimmer, navRadio.firstChild);
+        }
+
+        // Add subtle floating animation to the navbar pill
+        navRadio.style.animation = 'lgFloat 6s ease-in-out infinite';
+
+        // Inject keyframes once
+        if (!doc.getElementById('lg-keyframes')) {
+            const style = doc.createElement('style');
+            style.id = 'lg-keyframes';
+            style.textContent = `
+                @keyframes lgFloat {
+                    0%, 100% { box-shadow: 0 2px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.08) inset, 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12); }
+                    50%       { box-shadow: 0 2px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.08) inset, 0 12px 40px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.16); transform: translateX(-50%) translateY(-1px); }
+                }
+                @keyframes lgActivePulse {
+                    0%, 100% { box-shadow: 0 2px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.12) inset, 0 6px 20px rgba(255,87,34,0.40), 0 2px 6px rgba(255,87,34,0.25); }
+                    50%       { box-shadow: 0 2px 0 rgba(255,255,255,0.40) inset, 0 -1px 0 rgba(0,0,0,0.12) inset, 0 8px 28px rgba(255,87,34,0.60), 0 3px 10px rgba(255,87,34,0.40); }
+                }
+            `;
+            doc.head.appendChild(style);
+        }
+
+        // Apply pulse to the currently active label
+        const labels = navRadio.querySelectorAll('label[data-baseweb="radio"]');
+        labels.forEach(label => {
+            const inp = label.querySelector('input');
+            if (inp && inp.checked) {
+                label.style.animation = 'lgActivePulse 3s ease-in-out infinite';
+            } else {
+                label.style.animation = '';
+            }
+        });
+    }
+
+    // Run immediately and after Streamlit re-renders
+    inject();
+    setTimeout(inject, 300);
+    setTimeout(inject, 800);
+    setTimeout(inject, 1500);
+
+    // Re-apply on DOM mutations (Streamlit hot-reloads)
+    const observer = new MutationObserver(() => { inject(); });
+    observer.observe(doc.body, { childList: true, subtree: true });
+})();
+</script>
+""", unsafe_allow_html=True)
 
 # Handle logout: open dialog only when user freshly selected Logout
 # (guard: skip if active_menu is already something else — stale radio state)
