@@ -16,17 +16,29 @@ DB_PATH = os.path.join(BASE_DIR, "data", "fitness_tracker.db")
 # Path database untuk dataset (bisa sama atau berbeda. Sesuaikan dengan file .db Anda)
 DATASET_DB_PATH = os.path.join(BASE_DIR, "data", "fitnessfoodtracker.db")   # ganti dengan nama file database Anda
 
+# Global connection pool for MySQL to prevent lag
+mysql_pool = None
+
 def get_connection():
     """Get database connection based on environment configurations."""
+    global mysql_pool
     db_type = os.getenv("DB_TYPE", "sqlite").lower()
+    
     if db_type == "mysql":
         import mysql.connector
-        return mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
-            database=os.getenv("DB_NAME", "fitness_tracker")
-        )
+        from mysql.connector import pooling
+        
+        if mysql_pool is None:
+            mysql_pool = mysql.connector.pooling.MySQLConnectionPool(
+                pool_name="fitness_pool",
+                pool_size=5,
+                pool_reset_session=True,
+                host=os.getenv("DB_HOST", "localhost"),
+                user=os.getenv("DB_USER", "root"),
+                password=os.getenv("DB_PASSWORD", ""),
+                database=os.getenv("DB_NAME", "fitness_tracker")
+            )
+        return mysql_pool.get_connection()
     else:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         return sqlite3.connect(DB_PATH)
