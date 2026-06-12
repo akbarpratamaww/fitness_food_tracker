@@ -586,25 +586,25 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
 # Recover session from cookie.
-# Guard against stale cookie auto-login after logout.
-# We use BOTH session_state (in-memory) AND a query param (?logged_out=1)
-# because session_state is wiped on a full browser reload in Streamlit Cloud.
-_just_logged_out = (
-    st.session_state.get('logged_out', False)
-    or st.query_params.get('logged_out') == '1'
-)
-
-if st.session_state.user_id is None and not _just_logged_out:
+# The cookie stores "user_id:session_token".
+# The session_token is validated server-side (in the DB), so a stale/old
+# cookie is rejected the moment the DB token is cleared on logout --
+# regardless of what the user does to the URL.
+if st.session_state.user_id is None:
     try:
-        token = controller.get('user_session')
-        if token and token.strip():
-            parts = token.split(":")
+        cookie_val = controller.get('user_session')
+        if cookie_val and cookie_val.strip():
+            parts = cookie_val.split(":", 1)
             if len(parts) == 2:
-                uid, sig = parts[0], parts[1]
-                if verify_user_id(uid, sig):
-                    st.session_state.user_id = int(uid)
-                    st.query_params.clear()
-                    st.rerun()
+                uid_str, sess_token = parts[0], parts[1]
+                if uid_str.isdigit():
+                    uid_int = int(uid_str)
+                    # validate_session_token checks the DB — works even after
+                    # a full browser reload because the source of truth is the DB
+                    if validate_session_token(uid_int, sess_token):
+                        st.session_state.user_id = uid_int
+                        st.query_params.clear()
+                        st.rerun()
     except Exception:
         pass
 
@@ -698,18 +698,19 @@ if st.session_state.user_id is None:
                     else:
                         user_row = authenticate_user(login_username, login_password)
                         if user_row is not None:
-                            st.session_state.user_id = int(user_row['user_id'])
+                            uid = int(user_row['user_id'])
+                            st.session_state.user_id = uid
                             st.session_state.user = user_row.to_dict()
-                            token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                            controller.set('user_session', token, max_age=2592000)  # 30 days
-                            st.session_state.logged_out = False  # reset logged out state
-                            # Clear the logged_out query param on successful login
+                            # Create a fresh server-side session token and store in cookie
+                            sess_token = create_session_token(uid)
+                            controller.set('user_session', f"{uid}:{sess_token}", max_age=2592000)  # 30 days
+                            st.session_state.logged_out = False
                             st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
                             st.session_state.messages = []
                             st.session_state.greeting_sent = False
-                            st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                            st.success(f"\u2705 Selamat datang kembali, **{user_row['name']}**! \U0001f389")
                             time.sleep(0.8)
                             st.rerun()
                         else:
@@ -882,8 +883,9 @@ if st.session_state.user_id is None:
                                 user_row = get_user(new_uid)
                                 st.session_state.user_id = new_uid
                                 st.session_state.user = user_row.to_dict()
-                                token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                                controller.set('user_session', token, max_age=2592000)  # 30 days
+                                # Create server-side session token for new user
+                                sess_token = create_session_token(new_uid)
+                                controller.set('user_session', f"{new_uid}:{sess_token}", max_age=2592000)  # 30 days
                                 st.session_state.logged_out = False
                                 st.query_params.clear()
                                 st.session_state.active_menu = "Dashboard"
@@ -891,7 +893,7 @@ if st.session_state.user_id is None:
                                 st.session_state.messages = []
                                 st.session_state.greeting_sent = False
                                 st.session_state.reg_step = 0
-                                st.success(f"🎉 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
+                                st.success(f"\U0001f389 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
                                 st.balloons()
                                 time.sleep(1)
                                 st.rerun()
@@ -1006,20 +1008,30 @@ def logout_confirm_dialog():
     col_yes, col_no = st.columns(2)
     with col_yes:
         if st.button("Ya, Keluar", use_container_width=True, key="dialog_confirm_logout"):
-            # Remove cookie properly (more reliable than setting empty/expired value)
+            uid_to_logout = st.session_state.get('user_id')
+            # ── Server-side invalidation (the real fix) ──
+            # Clearing the token in the DB means the cookie becomes useless
+            # immediately, even if it survives in the browser.
+            if uid_to_logout:
+                try:
+                    invalidate_session_token(uid_to_logout)
+                except Exception:
+                    pass
+            # Also try to remove the cookie from the browser
             try:
                 controller.remove('user_session')
             except Exception:
-                # Fallback: overwrite with expired cookie
-                controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
+                try:
+                    controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
+                except Exception:
+                    pass
             # Clear all session state
             keys_to_delete = list(st.session_state.keys())
             for key in keys_to_delete:
                 del st.session_state[key]
             st.session_state.logged_out = True
             st.session_state.user_id = None
-            # Set query param as a persistent logout flag that survives full page reload
-            st.query_params['logged_out'] = '1'
+            st.query_params.clear()
             time.sleep(0.5)
             st.rerun()
     with col_no:

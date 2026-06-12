@@ -2,7 +2,9 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, date, timedelta
 import hashlib
+import hmac
 import os
+import secrets
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -179,6 +181,9 @@ def init_database():
         if 'password_hash' not in existing_cols:
             cursor.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
             conn.commit()
+        if 'session_token' not in existing_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
+            conn.commit()
         
         # Food log table (SQLite)
         cursor.execute('''
@@ -237,6 +242,72 @@ def init_database():
         
         conn.commit()
         conn.close()
+
+# ==================== SESSION TOKEN FUNCTIONS ====================
+
+def create_session_token(user_id: int) -> str:
+    """
+    Generate a cryptographically secure random session token, store it
+    in the database, and return it.  The token is stored server-side so
+    it can be invalidated on logout regardless of what is in the cookie.
+    """
+    token = secrets.token_hex(32)   # 64-char hex string
+    conn = get_connection()
+    cursor = conn.cursor()
+    p = get_placeholder()
+    try:
+        cursor.execute(
+            f"UPDATE users SET session_token = {p} WHERE user_id = {p}",
+            (token, user_id)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+    return token
+
+
+def validate_session_token(user_id: int, token: str) -> bool:
+    """
+    Return True only when the supplied token matches the one stored in
+    the database for user_id.  Returns False if the token has been
+    invalidated (logout) or if the user does not exist.
+    """
+    if not user_id or not token:
+        return False
+    conn = get_connection()
+    p = get_placeholder()
+    try:
+        df = pd.read_sql_query(
+            f"SELECT session_token FROM users WHERE user_id = {p}",
+            conn, params=(user_id,)
+        )
+        if df.empty:
+            return False
+        stored = df['session_token'].iloc[0]
+        if not stored:
+            return False
+        # Constant-time comparison to prevent timing attacks
+        return hmac.compare_digest(str(stored), str(token))
+    finally:
+        conn.close()
+
+
+def invalidate_session_token(user_id: int) -> None:
+    """Clear the session token for user_id (called on logout)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    p = get_placeholder()
+    try:
+        cursor.execute(
+            f"UPDATE users SET session_token = NULL WHERE user_id = {p}",
+            (user_id,)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # ==================== AUTH FUNCTIONS ====================
 
