@@ -1147,20 +1147,7 @@ if menu == "Dashboard":
         st.session_state.user_id = user['user_id']
         st.session_state.user = user
         
-        dash_col1, dash_col2 = st.columns([5, 1])
-        with dash_col1:
-            st.markdown(f"### Welcome back, {user['name']}! 👋")
-        with dash_col2:
-            if st.button("Logout", key="dash_logout_btn", use_container_width=True):
-                controller.remove('user_session')
-                st.session_state.logged_out = True
-                st.session_state.user_id = None
-                st.query_params.clear()
-                for key in list(st.session_state.keys()):
-                    if key != 'logged_out':
-                        del st.session_state[key]
-                time.sleep(0.5)
-                st.rerun()
+        st.markdown(f"### Welcome back, {user['name']}! 👋")
         
         # Quick terminology guide for laypeople
         with st.expander("ℹ️ Panduan Singkat Istilah Kesehatan (BMR, TDEE, BMI, Defisit/Surplus)"):
