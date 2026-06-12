@@ -112,6 +112,24 @@ st.markdown("""
         background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.01) 100%);
     }
     
+    /* Enforce dark text in classifier intro and result boxes regardless of dark/light theme */
+    div.classification-result-box,
+    div.classification-result-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box h3,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box p,
+    div[data-testid="stMarkdownContainer"] div.classification-result-box strong {
+        color: #1C1C1E !important;
+    }
+    
+    div.classification-intro-box,
+    div.classification-intro-box *,
+    div[data-testid="stMarkdownContainer"] div.classification-intro-box,
+    div[data-testid="stMarkdownContainer"] div.classification-intro-box * {
+        color: #1e293b !important;
+    }
+    
     .main div.stButton > button {
         background: linear-gradient(135deg, #FF5722 0%, #FF2E93 100%) !important;
         color: white !important;
@@ -133,6 +151,17 @@ st.markdown("""
  
     .main div.stButton > button:active {
         transform: translateY(1px) !important;
+    }
+
+    /* Custom style for yellow/amber buttons */
+    div.yellow-button-wrapper div.stButton > button {
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+        box-shadow: 0 6px 20px rgba(217, 119, 6, 0.3) !important;
+        color: white !important;
+    }
+    div.yellow-button-wrapper div.stButton > button:hover {
+        box-shadow: 0 8px 25px rgba(217, 119, 6, 0.45) !important;
+        filter: brightness(1.15) !important;
     }
 
     /* Force bold text for all buttons and their inner text elements */
@@ -306,6 +335,10 @@ st.markdown("""
         cursor: pointer !important;
         transition: all 0.2s ease !important;
         white-space: nowrap !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0px !important;
     }
     div[data-testid="stRadio"] label[data-baseweb="radio"]:hover {
         background: rgba(255, 87, 34, 0.08) !important;
@@ -325,6 +358,8 @@ st.markdown("""
         opacity: 1 !important;
         font-size: 0.9rem !important;
         font-weight: 800 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     /* Active / selected option */
     div[data-testid="stRadio"] label[data-baseweb="radio"][aria-checked="true"],
@@ -350,7 +385,41 @@ st.markdown("""
             padding: 0.32rem 0.55rem !important;
         }
     }
+
+    /* Style Logout button (last item) in navbar to be red */
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child,
+    div[data-testid="stRadio"] > div:last-child label:last-child {
+        border-color: rgba(239, 68, 68, 0.4) !important;
+        background: rgba(239, 68, 68, 0.06) !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child:hover,
+    div[data-testid="stRadio"] > div:last-child label:last-child:hover {
+        background: rgba(239, 68, 68, 0.15) !important;
+        border-color: rgba(239, 68, 68, 0.65) !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child span,
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child p,
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child div,
+    div[data-testid="stRadio"] div[role="radiogroup"] label:last-child *,
+    div[data-testid="stRadio"] > div:last-child label:last-child span,
+    div[data-testid="stRadio"] > div:last-child label:last-child p,
+    div[data-testid="stRadio"] > div:last-child label:last-child div,
+    div[data-testid="stRadio"] > div:last-child label:last-child * {
+        color: #EF4444 !important;
+    }
  
+    /* Thin yellow reset button — applied via JS class injection */
+    button.yellow-btn {
+        background: rgba(245, 158, 11, 0.06) !important;
+        color: #F59E0B !important;
+        border: 1px solid rgba(245, 158, 11, 0.40) !important;
+        font-weight: 700 !important;
+    }
+    button.yellow-btn:hover {
+        background: rgba(245, 158, 11, 0.15) !important;
+        border-color: rgba(245, 158, 11, 0.65) !important;
+        color: #F59E0B !important;
+    }
  
     /* Premium dataframes styling */
     div[data-testid="stDataFrame"] {
@@ -558,19 +627,26 @@ controller = CookieController()
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 
-# Recover session from cookie if available and user not explicitly logged out
-if st.session_state.user_id is None and not st.session_state.get('logged_out', False):
+# Recover session from cookie.
+# The cookie stores "user_id:session_token".
+# The session_token is validated server-side (in the DB), so a stale/old
+# cookie is rejected the moment the DB token is cleared on logout --
+# regardless of what the user does to the URL.
+if st.session_state.user_id is None:
     try:
-        token = controller.get('user_session')
-        if token:
-            parts = token.split(":")
+        cookie_val = controller.get('user_session')
+        if cookie_val and cookie_val.strip():
+            parts = cookie_val.split(":", 1)
             if len(parts) == 2:
-                uid, sig = parts[0], parts[1]
-                if verify_user_id(uid, sig):
-                    st.session_state.user_id = int(uid)
-                    if st.query_params:
+                uid_str, sess_token = parts[0], parts[1]
+                if uid_str.isdigit():
+                    uid_int = int(uid_str)
+                    # validate_session_token checks the DB — works even after
+                    # a full browser reload because the source of truth is the DB
+                    if validate_session_token(uid_int, sess_token):
+                        st.session_state.user_id = uid_int
                         st.query_params.clear()
-                    st.rerun()
+                        st.rerun()
     except Exception:
         pass
 
@@ -624,19 +700,39 @@ if 'prefilled_custom_name' not in st.session_state:
 # ==================== AUTH GATE ====================
 if st.session_state.user_id is None:
 
-    st.markdown('<div class="auth-logo"><h1>💪 FitTrack AI</h1><p>Smart Fitness & Food Tracker</p></div>', unsafe_allow_html=True)
+    # Split Layout
+    left_col, right_col = st.columns([1.1, 1], gap="large")
+    
+    with left_col:
+        st.markdown("""
+        <div style="padding: 2.5rem 0rem; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+            <div style="display: inline-block; background: rgba(255, 87, 34, 0.15); color: #FF5722; padding: 0.35rem 0.8rem; border-radius: 99px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; width: fit-content;">
+                ⚡ Smart Fitness Tracker
+            </div>
+            <h1 style="color: #FF5722; font-size: 2.8rem; font-weight: 800; margin: 0 0 0.5rem 0; letter-spacing: -1.5px; line-height: 1.1;">💪 FitTrack AI</h1>
+            <h3 style="font-weight: 600; font-size: 1.3rem; margin-top: 0; opacity: 0.9; line-height: 1.3;">Your fitness, your data, your journey.</h3>
+            <p style="opacity: 0.7; font-size: 0.92rem; line-height: 1.6; margin: 1rem 0 2rem 0;">
+                Log food, track workouts, predict calorie burn via machine learning, and chat with our AI coach to achieve your fitness goals.
+            </p>
+            <div style="background: rgba(255, 87, 34, 0.05); border-left: 4px solid #FF5722; padding: 1rem 1.2rem; border-radius: 10px;">
+                <span style="font-weight: 700; color: #FF5722; font-size: 1rem;">🔥 15K+ Active Users</span><br>
+                <span style="font-size: 0.82rem; opacity: 0.75;">Join the community making healthy habit changes daily.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    auth_tab1, auth_tab2 = st.tabs(["🔑 Login", "📝 Register"])
+    with right_col:
+        auth_tab1, auth_tab2 = st.tabs(["🔑 Login", "📝 Register"])
 
-    # -------- LOGIN TAB --------
-    with auth_tab1:
-        st.markdown('<br>', unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown('<div style="text-align: center; margin-bottom: 1.5rem;"><h3 style="margin:0; color:var(--text-color);">🔑 Welcome Back</h3><p style="color:#8E8E93; font-size:0.9rem; margin:0.3rem 0 0 0;">Login to your fitness tracker</p></div>', unsafe_allow_html=True)
-            with st.form("login_form"):
-                login_username = st.text_input("Username", placeholder="Masukkan username kamu")
-                login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
-                login_btn = st.form_submit_button("Login", use_container_width=True)
+        # -------- LOGIN TAB --------
+        with auth_tab1:
+            st.markdown('<br>', unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown('<div style="text-align: center; margin-bottom: 1.5rem;"><h3 style="margin:0; color:var(--text-color);">🔑 Welcome Back</h3><p style="color:#8E8E93; font-size:0.9rem; margin:0.3rem 0 0 0;">Login to your fitness tracker</p></div>', unsafe_allow_html=True)
+                with st.form("login_form"):
+                    login_username = st.text_input("Username", placeholder="Masukkan username kamu")
+                    login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
+                    login_btn = st.form_submit_button("Login", use_container_width=True)
 
             if login_btn:
                 if not login_username or not login_password:
@@ -831,22 +927,204 @@ if st.session_state.user_id is None:
                             user_row = get_user(new_uid)
                             st.session_state.user_id = new_uid
                             st.session_state.user = user_row.to_dict()
+                            # Create a fresh server-side session token and store in cookie
+                            sess_token = create_session_token(uid)
+                            controller.set('user_session', f"{uid}:{sess_token}", max_age=2592000)  # 30 days
                             st.session_state.logged_out = False
-                            token = f"{new_uid}:{sign_user_id(new_uid)}"
-                            controller.set('user_session', token)
-                            if st.query_params:
-                                st.query_params.clear()
+                            st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
                             st.session_state.messages = []
                             st.session_state.greeting_sent = False
-                            st.session_state.reg_step = 0
-                            st.success(f"🎉 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
-                            st.balloons()
-                            time.sleep(1)
+                            st.success(f"\u2705 Selamat datang kembali, **{user_row['name']}**! \U0001f389")
+                            time.sleep(0.8)
                             st.rerun()
                         else:
-                            st.error(f"❌ {result['error']}")
+                            st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
+
+        # -------- REGISTER TAB --------
+        with auth_tab2:
+            st.markdown('<br>', unsafe_allow_html=True)
+            with st.container(border=True):
+                if st.session_state.reg_step == 0:
+                    st.markdown('<div class="wizard-title">💪 Welcome to FitTrack AI</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Ready for some wins? Start tracking, it\'s easy! Let\'s customize FitTrack AI for your goals.</div>', unsafe_allow_html=True)
+                    
+                    st.markdown("""
+                    <div style="background-color: rgba(255, 87, 34, 0.05); padding: 1.2rem; border-radius: 16px; border-left: 4px solid #FF5722; font-size: 0.9rem; line-height: 1.5; margin-bottom: 2rem;">
+                        Menghitung TDEE, BMR, BMI, serta rekomendasi nutrisi harian kamu berdasarkan metode kebugaran yang terbukti secara ilmiah.
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("Get Started", use_container_width=True, key="start_btn"):
+                        st.session_state.reg_step = 1
+                        st.rerun()
+
+                elif st.session_state.reg_step == 1:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">👤 Buat Akun Baru</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Masukkan username dan password unik Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_username = st.text_input("Username*", value=st.session_state.reg_username, placeholder="Buat username unikmu")
+                    reg_password = st.text_input("Password*", type="password", value=st.session_state.reg_password, placeholder="Min. 6 karakter")
+                    reg_password2 = st.text_input("Konfirmasi Password*", type="password", placeholder="Ulangi password")
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_1", use_container_width=True):
+                            st.session_state.reg_step = 0
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_1", use_container_width=True):
+                            if not reg_username or len(reg_username) < 3:
+                                st.error("❌ Username minimal 3 karakter.")
+                            elif username_exists(reg_username):
+                                st.error("❌ Username sudah digunakan, silakan pilih username lain.")
+                            elif not reg_password or len(reg_password) < 6:
+                                st.error("❌ Password minimal 6 karakter.")
+                            elif reg_password != reg_password2:
+                                st.error("❌ Konfirmasi password tidak cocok.")
+                            else:
+                                st.session_state.reg_username = reg_username
+                                st.session_state.reg_password = reg_password
+                                st.session_state.reg_step = 2
+                                st.rerun()
+
+                elif st.session_state.reg_step == 2:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🙋‍♂️ Siapa Nama Anda?</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Beritahu kami sedikit informasi dasar tentang diri Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_name = st.text_input("Nama Lengkap*", value=st.session_state.reg_name, placeholder="Nama kamu")
+                    reg_age = st.number_input("Usia (tahun)*", min_value=15, max_value=100, value=int(st.session_state.reg_age))
+                    reg_gender = st.selectbox("Jenis Kelamin*", ["Male", "Female"], index=0 if st.session_state.reg_gender == "Male" else 1)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_2", use_container_width=True):
+                            st.session_state.reg_step = 1
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_2", use_container_width=True):
+                            if not reg_name.strip():
+                                st.error("❌ Nama lengkap wajib diisi.")
+                            else:
+                                st.session_state.reg_name = reg_name
+                                st.session_state.reg_age = reg_age
+                                st.session_state.reg_gender = reg_gender
+                                st.session_state.reg_step = 3
+                                st.rerun()
+
+                elif st.session_state.reg_step == 3:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">📏 Ukuran Tubuh Anda</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Masukkan tinggi dan berat badan terbaru Anda untuk menghitung BMI secara akurat.</div>', unsafe_allow_html=True)
+                    
+                    reg_height = st.number_input("Tinggi Badan (cm)*", min_value=100, max_value=250, value=int(st.session_state.reg_height))
+                    reg_weight = st.number_input("Berat Badan (kg)*", min_value=30.0, max_value=200.0, value=float(st.session_state.reg_weight), step=0.5)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_3", use_container_width=True):
+                            st.session_state.reg_step = 2
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_3", use_container_width=True):
+                            st.session_state.reg_height = reg_height
+                            st.session_state.reg_weight = reg_weight
+                            st.session_state.reg_step = 4
+                            st.rerun()
+
+                elif st.session_state.reg_step == 4:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🏃‍♂️ Tingkat Aktivitas & Tujuan</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Sesuaikan target energi berdasarkan tingkat aktivitas fisik dan goal Anda.</div>', unsafe_allow_html=True)
+                    
+                    reg_activity = st.selectbox("Tingkat Aktivitas*", list(ACTIVITY_MULTIPLIERS.keys()), index=list(ACTIVITY_MULTIPLIERS.keys()).index(st.session_state.reg_activity))
+                    reg_goal = st.selectbox("Tujuan Kebugaran*", list(FITNESS_GOALS.keys()), index=list(FITNESS_GOALS.keys()).index(st.session_state.reg_goal))
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_4", use_container_width=True):
+                            st.session_state.reg_step = 3
+                            st.rerun()
+                    with col2:
+                        if st.button("Next", key="next_4", use_container_width=True):
+                            st.session_state.reg_activity = reg_activity
+                            st.session_state.reg_goal = reg_goal
+                            st.session_state.reg_step = 5
+                            st.rerun()
+
+                elif st.session_state.reg_step == 5:
+                    st.markdown('<div class="progress-bar-container"><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div><div class="progress-segment active"></div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-title">🎉 Analisis & Ringkasan Profil</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="wizard-subtitle">Berikut estimasi perhitungan kesehatan Anda. Klik tombol di bawah untuk membuat akun!</div>', unsafe_allow_html=True)
+                    
+                    bmr = calculate_bmr(st.session_state.reg_weight, st.session_state.reg_height, st.session_state.reg_age, st.session_state.reg_gender)
+                    tdee = calculate_tdee(bmr, st.session_state.reg_activity)
+                    daily_target = calculate_daily_target(tdee, st.session_state.reg_goal)
+                    bmi = calculate_bmi(st.session_state.reg_weight, st.session_state.reg_height)
+                    bmi_cat = get_bmi_category(bmi)
+                    
+                    st.markdown(f"""
+                    <div style="background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.15); padding: 1.2rem; border-radius: 16px; margin-bottom: 1.5rem;">
+                        <h5 style="margin-top:0; color:#FF5722;">📊 Hasil Analisis Tubuh</h5>
+                        <table style="width:100%; font-size:0.9rem; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">BMR</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{bmr:.0f} kcal/day</td></tr>
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">TDEE</td><td style="padding:6px 0; text-align:right; font-weight:600; color:var(--text-color);">{tdee:.0f} kcal/day</td></tr>
+                            <tr style="border-bottom: 1px solid rgba(128,128,128,0.15);"><td style="padding:6px 0; color:#8E8E93;">Target Kalori</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#FF2E93;">{daily_target:.0f} kcal/day</td></tr>
+                            <tr><td style="padding:6px 0; color:#8E8E93;">BMI (IMT)</td><td style="padding:6px 0; text-align:right; font-weight:600; color:#06B6D4;">{bmi:.1f} ({bmi_cat})</td></tr>
+                        </table>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown('<div class="wizard-nav">', unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        if st.button("Back", key="back_5", use_container_width=True):
+                            st.session_state.reg_step = 4
+                            st.rerun()
+                    with col2:
+                        if st.button("Buat Akun & Mulai!", key="submit_btn", use_container_width=True):
+                            result = register_user(st.session_state.reg_username, st.session_state.reg_password, {
+                                'name': st.session_state.reg_name, 
+                                'age': st.session_state.reg_age, 
+                                'gender': st.session_state.reg_gender,
+                                'height_cm': st.session_state.reg_height, 
+                                'weight_kg': st.session_state.reg_weight,
+                                'activity_level': st.session_state.reg_activity, 
+                                'fitness_goal': st.session_state.reg_goal,
+                                'bmr': bmr, 
+                                'tdee': tdee, 
+                                'daily_target_calories': daily_target
+                            })
+                            
+                            if result['success']:
+                                new_uid = result['user_id']
+                                update_weight(new_uid, st.session_state.reg_weight)
+                                user_row = get_user(new_uid)
+                                st.session_state.user_id = new_uid
+                                st.session_state.user = user_row.to_dict()
+                                # Create server-side session token for new user
+                                sess_token = create_session_token(new_uid)
+                                controller.set('user_session', f"{new_uid}:{sess_token}", max_age=2592000)  # 30 days
+                                st.session_state.logged_out = False
+                                st.query_params.clear()
+                                st.session_state.active_menu = "Dashboard"
+                                st.session_state.chatbot = None
+                                st.session_state.messages = []
+                                st.session_state.greeting_sent = False
+                                st.session_state.reg_step = 0
+                                st.success(f"\U0001f389 Akun berhasil dibuat! Selamat datang, **{st.session_state.reg_name}**!")
+                                st.balloons()
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {result['error']}")
 
     st.stop()  # Hentikan render konten di bawah jika belum login
 
@@ -862,8 +1140,137 @@ if logged_user is None:
 
 menu_options = [
     "Dashboard", "Profile", "Food Log", "Activity Log", "Fitness Level Classifier",
-    "AI Chatbot", "About"
+    "AI Chatbot", "About", "Logout"
 ]
+
+# ── Reset today confirmation dialog ──
+@st.dialog("Konfirmasi Reset Kalori Hari Ini")
+def reset_today_confirm_dialog(user_id):
+    st.markdown("""
+    <style>
+        div[data-testid="stDialog"] > div { margin-top: 10vh !important; }
+        div[data-testid="stDialog"] [role="dialog"] { margin-top: 10vh !important; }
+        /* Yellow confirm button */
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button {
+            background-color: #F59E0B !important;
+            color: #1a1a1a !important;
+            border: 1px solid #F59E0B !important;
+            font-weight: 700 !important;
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button:hover {
+            background-color: #D97706 !important;
+            border-color: #D97706 !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:last-child button {
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="stHorizontalBlock"] {
+            align-items: center !important;
+        }
+    </style>
+    <div style="text-align:center; padding: 1rem 0 1.5rem 0;">
+        <div style="font-size:3.5rem; line-height:1; margin-bottom:1rem; display:block;">⚠️</div>
+        <p style="font-size:1.05rem; margin:0; color: var(--text-color);">
+            Semua log makanan &amp; aktivitas hari ini akan dihapus.<br>
+            <strong>Apakah Anda yakin ingin melanjutkan?</strong>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    col_yes, col_no = st.columns(2)
+    with col_yes:
+        if st.button("Ya, Reset", use_container_width=True, key="dialog_confirm_reset"):
+            reset_today_logs(user_id)
+            st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
+            time.sleep(0.6)
+            st.rerun()
+    with col_no:
+        if st.button("Batal", use_container_width=True, key="dialog_cancel_reset"):
+            st.rerun()
+
+# ── Logout confirmation dialog ──
+@st.dialog("Konfirmasi Logout")
+def logout_confirm_dialog():
+    st.markdown("""
+    <style>
+        /* Move dialog lower and center it properly */
+        div[data-testid="stDialog"] > div {
+            margin-top: 10vh !important;
+        }
+        /* Fix the dialog modal container */
+        div[data-testid="stDialog"] [role="dialog"] {
+            margin-top: 10vh !important;
+        }
+        /* Red confirm button */
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button {
+            background-color: #EF4444 !important;
+            color: white !important;
+            border: 1px solid #EF4444 !important;
+            font-weight: 700 !important;
+            height: 2.6rem !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="column"]:first-child button:hover {
+            background-color: #DC2626 !important;
+            border-color: #DC2626 !important;
+        }
+        /* Neutral cancel button - same height */
+        div[data-testid="stDialog"] div[data-testid="column"]:last-child button {
+            height: 2.6rem !important;
+        }
+        /* Ensure both column blocks are vertically aligned */
+        div[data-testid="stDialog"] div[data-testid="stHorizontalBlock"] {
+            align-items: center !important;
+        }
+    </style>
+    <div style="text-align:center; padding: 1rem 0 1.5rem 0;">
+        <div style="font-size:3.5rem; line-height:1; margin-bottom:1rem; display:block;">🔒</div>
+        <p style="font-size:1.05rem; margin:0; color: var(--text-color);">
+            Apakah Anda yakin ingin keluar dari<br>
+            <strong>Smart Fitness &amp; Food Tracker</strong>?
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_yes, col_no = st.columns(2)
+    with col_yes:
+        if st.button("Ya, Keluar", use_container_width=True, key="dialog_confirm_logout"):
+            uid_to_logout = st.session_state.get('user_id')
+            # ── Server-side invalidation (the real fix) ──
+            # Clearing the token in the DB means the cookie becomes useless
+            # immediately, even if it survives in the browser.
+            if uid_to_logout:
+                try:
+                    invalidate_session_token(uid_to_logout)
+                except Exception:
+                    pass
+            # Also try to remove the cookie from the browser
+            try:
+                controller.remove('user_session')
+            except Exception:
+                try:
+                    controller.set('user_session', '', expires=datetime(1970, 1, 1), max_age=0)
+                except Exception:
+                    pass
+            # Clear all session state
+            keys_to_delete = list(st.session_state.keys())
+            for key in keys_to_delete:
+                del st.session_state[key]
+            st.session_state.logged_out = True
+            st.session_state.user_id = None
+            st.query_params.clear()
+            time.sleep(0.5)
+            st.rerun()
+    with col_no:
+        if st.button("Batal", use_container_width=True, key="dialog_cancel_logout"):
+            # Force the radio back to the current active menu so the
+            # Logout item is deselected and won't re-trigger next rerun
+            safe_menu = st.session_state.get('active_menu', 'Dashboard')
+            if safe_menu == 'Logout':
+                safe_menu = 'Dashboard'
+                st.session_state.active_menu = safe_menu
+            st.session_state['main_nav_radio'] = safe_menu
+            st.rerun()
+
 
 # ── Single safe navigation: st.radio() reads value directly, no on_change callbacks ──
 current_idx = menu_options.index(st.session_state.active_menu) if st.session_state.active_menu in menu_options else 0
@@ -875,12 +1282,22 @@ selected_menu = st.radio(
     key="main_nav_radio",
     label_visibility="collapsed"
 )
+
+# Handle logout: open dialog only when user freshly selected Logout
+# (guard: skip if active_menu is already something else — stale radio state)
+if selected_menu == "Logout" and st.session_state.active_menu != "Logout":
+    # Double-check the radio widget key matches to avoid stale-state false triggers
+    if st.session_state.get('main_nav_radio') == 'Logout':
+        logout_confirm_dialog()
+
 # Only update active_menu if user explicitly changed the radio (not during form submits)
-if selected_menu != st.session_state.active_menu:
+elif selected_menu != st.session_state.active_menu:
     st.session_state.active_menu = selected_menu
     st.rerun()
 
 menu = st.session_state.active_menu
+if menu == "Logout":
+    menu = st.session_state.get('active_menu', 'Dashboard')
 
 # ==================== MAIN APPLICATION ====================
 
@@ -939,7 +1356,31 @@ if menu == "Dashboard":
         
         # Today's summary & Alerts container card
         with st.container(border=True):
-            st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
+            r1_title_col, r1_btn_col = st.columns([5, 1.2])
+            with r1_title_col:
+                st.markdown("### 📊 Ringkasan Aktivitas & Nutrisi Hari Ini")
+            with r1_btn_col:
+                if st.button("Reset Kalori Hari Ini", key="reset_daily_btn", use_container_width=True):
+                    reset_today_confirm_dialog(user['user_id'])
+                # JS: find button by text and add yellow-btn class
+                st.markdown("""
+                <script>
+                (function() {
+                    function applyYellowBtn() {
+                        const btns = window.parent.document.querySelectorAll('button');
+                        btns.forEach(btn => {
+                            if (btn.innerText.trim() === 'Reset Kalori Hari Ini') {
+                                btn.classList.add('yellow-btn');
+                            }
+                        });
+                    }
+                    // Run immediately and after short delay for Streamlit re-renders
+                    applyYellowBtn();
+                    setTimeout(applyYellowBtn, 300);
+                    setTimeout(applyYellowBtn, 800);
+                })();
+                </script>
+                """, unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns(4)
             
             calories_in, calories_out = get_today_summary(user['user_id'])
@@ -1009,14 +1450,7 @@ if menu == "Dashboard":
                 </div>
                 ''', unsafe_allow_html=True)
 
-        # Button to reset daily calories
-        col_btn1, col_btn2 = st.columns([5, 1.2])
-        with col_btn2:
-            if st.button("Reset Hari Ini", key="reset_daily_btn", use_container_width=True):
-                reset_today_logs(user['user_id'])
-                st.toast("✅ Log makanan & aktivitas hari ini berhasil di-reset!")
-                time.sleep(0.6)
-                st.rerun()
+
 
         # ==================== ROW 1: CALORIE SUMMARY & TRENDS ====================
         with st.container(border=True):
@@ -1051,7 +1485,7 @@ if menu == "Dashboard":
                     font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
                     margin=dict(l=20, r=20, t=50, b=20)
                 )
-                fig.update_xaxes(title='Date', gridcolor='rgba(255,255,255,0.05)')
+                fig.update_xaxes(title='Date', type='category', gridcolor='rgba(255,255,255,0.05)')
                 fig.update_yaxes(title='Calories (kcal)', gridcolor='rgba(255,255,255,0.05)')
                 st.plotly_chart(fig, use_container_width=True)
                 
@@ -1096,7 +1530,7 @@ if menu == "Dashboard":
                         font=dict(family='Poppins, sans-serif', color='#E0E0E0'),
                         margin=dict(l=20, r=20, t=50, b=20)
                     )
-                    fig_trend.update_xaxes(gridcolor='rgba(255,255,255,0.05)')
+                    fig_trend.update_xaxes(type='category', gridcolor='rgba(255,255,255,0.05)')
                     fig_trend.update_yaxes(gridcolor='rgba(255,255,255,0.05)')
                     st.plotly_chart(fig_trend, use_container_width=True)
                 else:
@@ -1784,7 +2218,7 @@ elif menu == "Activity Log":
 elif menu == "Fitness Level Classifier":
     st.markdown('<div class="main-header">Klasifikasi Tingkat Kebugaran</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+    <div class="classification-intro-box" style="background: #f0f9ff; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1e293b;">
         Masukkan data fisik dan hasil tes kebugaran Anda. Sistem akan memprediksi tingkat kebugaran 
         menggunakan algoritma Machine Learning: <strong>Random Forest</strong>.
     </div>
@@ -1865,9 +2299,9 @@ elif menu == "Fitness Level Classifier":
                         icon = "⚠️"
                     
                     st.markdown(f"""
-                    <div style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
-                        <h3 style="margin: 0 0 0.5rem 0;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
-                        <p style="margin: 0;">Sistem memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
+                    <div class="classification-result-box" style="background: {bg_color}; border-left: 6px solid {border_color}; border-radius: 16px; padding: 1.5rem; margin: 1rem 0; color: #1C1C1E !important;">
+                        <h3 style="margin: 0 0 0.5rem 0; color: #1C1C1E !important;">{icon} Tingkat Kebugaran: <strong>{result}</strong></h3>
+                        <p style="margin: 0; color: #1C1C1E !important;">Model {algorithm.replace('_', ' ').title()} memprediksi dengan tingkat keyakinan <strong>{confidence:.1f}%</strong></p>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -2150,6 +2584,138 @@ elif menu == "📊 ML Predictor":
 
 elif menu == "About":
     st.markdown('<div class="main-header">About This App</div>', unsafe_allow_html=True)
+
+    # ── Hero card ──────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("""
+        <div style="text-align:center; padding:0.5rem 0 1rem 0;">
+            <span style="font-size:3.5rem;">💪</span>
+            <h2 style="margin:0.4rem 0 0.2rem 0;">Smart Fitness &amp; Calorie Tracker</h2>
+            <p style="color:#8E8E93; margin:0;">Version 2.0.0 &nbsp;|&nbsp; Python · Streamlit · SQLite · Scikit-learn · Plotly · Groq API</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Key Features ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 🎯 Key Features")
+        feat_col1, feat_col2 = st.columns(2)
+        features = [
+            ("📊", "Personalized Calorie Tracking", "Menghitung BMR, TDEE, dan target harian berdasarkan profil kamu"),
+            ("🍽️", "Food Log", "Catat makanan yang dimakan setiap hari"),
+            ("🏃", "Activity Tracking", "Catat olahraga dengan kalkulasi pembakaran kalori otomatis (rumus MET)"),
+            ("🤖", "AI Fitness Chatbot", "Saran kebugaran personal (Groq Llama 3.3 70B atau rule-based fallback)"),
+            ("🔮", "ML Calorie Predictor", "Memprediksi kalori terbakar saat olahraga (Random Forest Regressor)"),
+            ("🏅", "Fitness Level Classifier", "Klasifikasi level kebugaran A/B/C/D (Random Forest, akurasi ~74.5%)"),
+            ("📈", "Progress Dashboard", "Grafik interaktif berat badan dan tren kalori harian"),
+            ("🔒", "Session Isolation", "Setiap user punya sesi mandiri berbasis browser cookies"),
+        ]
+        for i, (icon, title, desc) in enumerate(features):
+            col = feat_col1 if i % 2 == 0 else feat_col2
+            with col:
+                st.markdown(f"""
+                <div style="display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.9rem;">
+                    <span style="font-size:1.6rem; line-height:1.2;">{icon}</span>
+                    <div>
+                        <strong>{title}</strong><br>
+                        <span style="font-size:0.85rem; color:#8E8E93;">{desc}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ── How It Works ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 📋 Cara Penggunaan")
+        steps = [
+            ("1", "#4f46e5", "Setup Profile", "Masukkan usia, jenis kelamin, tinggi, berat, level aktivitas, dan tujuan kebugaran"),
+            ("2", "#0ea5e9", "Catat Harian", "Log makanan dan aktivitas sepanjang hari"),
+            ("3", "#10b981", "Pantau Progress", "Cek dashboard untuk melihat apakah kamu on-track"),
+            ("4", "#f59e0b", "Tanya AI Coach", "Gunakan chatbot untuk pertanyaan seputar kebugaran"),
+            ("5", "#ef4444", "Cek Fitness Level", "Input hasil tes fisik untuk mendapat klasifikasi kebugaran kamu"),
+        ]
+        for num, color, title, desc in steps:
+            st.markdown(f"""
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.85rem;">
+                <div style="min-width:2.2rem; height:2.2rem; border-radius:50%; background:{color};
+                            display:flex; align-items:center; justify-content:center;
+                            color:white; font-weight:700; font-size:1rem;">{num}</div>
+                <div><strong>{title}</strong> — <span style="font-size:0.9rem; color:#8E8E93;">{desc}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── Formulas ───────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 🔬 Formula yang Digunakan")
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            st.markdown("""
+            **BMR (Mifflin-St Jeor)**
+            - Pria: `(10×BB) + (6.25×TB) - (5×Usia) + 5`
+            - Wanita: `(10×BB) + (6.25×TB) - (5×Usia) - 161`
+
+            **TDEE**
+            - `BMR × Activity Multiplier`
+            """)
+        with f_col2:
+            st.markdown("""
+            **Kalori Terbakar (MET)**
+            - `(MET × 3.5 × BB) / 200 × menit`
+
+            **ML Calorie Prediction**
+            - Random Forest Regressor
+
+            **ML Fitness Classification**
+            - Random Forest + StandardScaler
+            """)
+
+    # ── Dataset Info ───────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 📁 Informasi Dataset")
+        d_col1, d_col2 = st.columns(2)
+        with d_col1:
+            try:
+                food_df = pd.read_csv('data/food_dataset.csv')
+                st.success(f"✅ Food dataset: **{len(food_df):,}** items")
+            except:
+                st.info("📝 Food dataset akan dibuat otomatis")
+            try:
+                exercise_df = pd.read_csv('data/exercise_dataset.csv')
+                st.success(f"✅ Exercise dataset: **{len(exercise_df):,}** samples")
+            except:
+                st.info("📝 Exercise dataset akan dibuat otomatis")
+        with d_col2:
+            try:
+                body_df = pd.read_csv('data/body_performance.csv')
+                st.success(f"✅ Body performance dataset: **{len(body_df):,}** samples")
+                st.caption("Features: usia, gender, tinggi, berat, body fat %, tekanan darah, grip strength, fleksibilitas, sit-ups, broad jump → Target: kelas A/B/C/D")
+            except:
+                st.warning("⚠️ Body performance dataset tidak ditemukan. Fitness classifier mungkin tidak berfungsi.")
+
+    # ── Tips ───────────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("### 💡 Tips untuk Hasil Terbaik")
+        tips_col1, tips_col2 = st.columns(2)
+        tips = [
+            "Catat semua yang kamu makan dan minum",
+            "Konsisten dalam tracking setiap hari",
+            "Update berat badan setiap minggu",
+            "Gunakan AI chatbot untuk saran personal",
+            "Cek progress secara rutin agar tetap termotivasi",
+            "Input hasil tes fisik yang jujur untuk klasifikasi akurat",
+        ]
+        for i, tip in enumerate(tips):
+            col = tips_col1 if i % 2 == 0 else tips_col2
+            with col:
+                st.markdown(f"✔️ {tip}")
+
+    # ── Footer ─────────────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("""
+        <div style="text-align:center; padding:0.5rem 0;">
+            <p style="margin:0; color:#8E8E93; font-size:0.9rem;">
+                Made with ❤️ for Final Project &nbsp;·&nbsp; Smart Fitness &amp; Food Tracker
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Hero card ──────────────────────────────────────────────────────────────
     with st.container(border=True):
