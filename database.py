@@ -75,6 +75,7 @@ def init_database():
                 bmr DOUBLE,
                 tdee DOUBLE,
                 daily_target_calories DOUBLE,
+                session_token VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -86,6 +87,11 @@ def init_database():
             pass
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN session_token VARCHAR(255)")
             conn.commit()
         except Exception:
             pass

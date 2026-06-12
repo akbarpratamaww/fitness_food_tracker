@@ -37,17 +37,17 @@ def migrate_data():
             database=db_name
         )
         mysql_cursor = mysql_conn.cursor()
-        print("✅ Terhubung ke MySQL Cloud!")
+        print("Berhasil Terhubung ke MySQL Cloud!")
         
         # Koneksi SQLite
         if not os.path.exists(SQLITE_DB_PATH):
-            print(f"❌ File SQLite {SQLITE_DB_PATH} tidak ditemukan.")
+            print(f"Gagal: File SQLite {SQLITE_DB_PATH} tidak ditemukan.")
             return
             
         sqlite_conn = sqlite3.connect(SQLITE_DB_PATH)
         sqlite_conn.row_factory = sqlite3.Row
         sqlite_cursor = sqlite_conn.cursor()
-        print("✅ Terhubung ke SQLite Lokal!")
+        print("Berhasil Terhubung ke SQLite Lokal!")
 
         # Daftar tabel yang akan dimigrasi
         tables = [
@@ -69,7 +69,7 @@ def migrate_data():
                 sqlite_cursor.execute(f"SELECT * FROM {table}")
                 rows = sqlite_cursor.fetchall()
             except sqlite3.OperationalError:
-                print(f"⚠️ Tabel {table} tidak ada di SQLite. Dilewati.")
+                print(f"Peringatan: Tabel {table} tidak ada di SQLite. Dilewati.")
                 continue
 
             if not rows:
@@ -91,16 +91,16 @@ def migrate_data():
             try:
                 mysql_cursor.executemany(insert_query, data_to_insert)
                 mysql_conn.commit()
-                print(f"✅ Tabel {table} berhasil dimigrasi!")
+                print(f"Berhasil: Tabel {table} dimigrasi!")
             except Exception as e:
-                print(f"❌ Gagal memigrasi tabel {table}: {e}")
+                print(f"Gagal memigrasi tabel {table}: {e}")
 
         # Aktifkan kembali foreign key checks
         mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=1;")
-        print("\n🎉 MIGRASI SELESAI!")
+        print("\n=== MIGRASI SELESAI ===")
 
     except Exception as e:
-        print(f"\n❌ Terjadi kesalahan: {e}")
+        print(f"\nTerjadi kesalahan: {e}")
     finally:
         if 'mysql_cursor' in locals(): mysql_cursor.close()
         if 'mysql_conn' in locals() and mysql_conn.is_connected(): mysql_conn.close()
