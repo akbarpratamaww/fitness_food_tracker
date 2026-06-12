@@ -741,21 +741,20 @@ if st.session_state.user_id is None:
                 <div class="info-box" style="margin-bottom:1rem;">
                     ℹ️ <strong>Username tidak ditemukan.</strong> Silakan daftarkan akun baru di bawah ini.
                 </div>
+                """, unsafe_allow_html=True)
+                
+                # Execute JS properly using components.html to click the Register tab
+                import streamlit.components.v1 as components
+                components.html("""
                 <script>
                 (function switchToRegisterTab() {
-                    function doSwitch() {
-                        const doc = window.parent.document;
-                        const tabs = doc.querySelectorAll('button[data-baseweb="tab"]');
-                        if (tabs.length >= 2) {
-                            tabs[1].click();  // click "Register" tab (index 1)
-                        }
+                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+                    if (tabs.length >= 2) {
+                        tabs[1].click();
                     }
-                    doSwitch();
-                    setTimeout(doSwitch, 150);
-                    setTimeout(doSwitch, 400);
                 })();
                 </script>
-                """, unsafe_allow_html=True)
+                """, height=0, width=0)
 
             st.markdown('<br>', unsafe_allow_html=True)
             with st.container(border=True):
