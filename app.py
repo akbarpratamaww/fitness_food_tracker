@@ -26,13 +26,10 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     
-    html, body, [data-testid="stAppViewContainer"], .main, h1, h2, h3, h4, h5, h6, .stMarkdown p {
+    html, body, [data-testid="stAppViewContainer"], .main {
         font-family: 'Poppins', sans-serif;
-        background-color: transparent !important;
-        color: var(--text-color) !important;
-    }
-    .main {
         background-color: var(--background-color) !important;
+        color: var(--text-color) !important;
     }
     
     .main-header {
@@ -428,11 +425,6 @@ st.markdown("""
         overflow: hidden !important;
     }
     
-    /* Center horizontal radio buttons (navigation menu) */
-    div[role="radiogroup"] {
-        justify-content: center !important;
-    }
-    
     /* Responsive Styling for Mobile */
     @media (max-width: 768px) {
         .main-header {
@@ -579,41 +571,7 @@ st.markdown("""
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }
-    
-    /* ── Chat Bubble Styling ── */
-    [data-testid="stChatMessage"] {
-        background-color: var(--secondary-background-color) !important;
-        border: 1px solid rgba(128, 128, 128, 0.1) !important;
-        border-radius: 16px !important;
-        padding: 1.5rem 2rem !important;
-        margin-bottom: 1.5rem !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-    }
-    
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"],
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] * {
-        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
-        font-size: 16px !important;
-        line-height: 1.6 !important;
-        color: var(--text-color) !important;
-    }
-
-    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] > p:last-child {
-        margin-bottom: 0 !important;
-    }
-    
-    /* Style Chat Input */
-    div[data-testid="stChatInput"] {
-        background-color: var(--secondary-background-color) !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(128, 128, 128, 0.2) !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
-        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
-    }
-    div[data-testid="stChatInput"] textarea {
-        font-family: 'Source Sans', 'Source Sans Pro', sans-serif !important;
-        font-size: 16px !important;
-    }
+ 
 </style>
 """, unsafe_allow_html=True)
 
@@ -734,32 +692,29 @@ if st.session_state.user_id is None:
                     login_password = st.text_input("Password", type="password", placeholder="Masukkan password kamu")
                     login_btn = st.form_submit_button("Login", use_container_width=True)
 
-            if login_btn:
-                if not login_username or not login_password:
-                    st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
-                else:
-                    if not username_exists(login_username):
-                        st.markdown('<div class="danger-box">❌ Username tidak ditemukan. Silakan ke tab Register untuk membuat akun.</div>', unsafe_allow_html=True)
+                if login_btn:
+                    if not login_username or not login_password:
+                        st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                     else:
                         user_row = authenticate_user(login_username, login_password)
                         if user_row is not None:
-                            st.session_state.user_id = int(user_row['user_id'])
+                            uid = int(user_row['user_id'])
+                            st.session_state.user_id = uid
                             st.session_state.user = user_row.to_dict()
+                            # Create a fresh server-side session token and store in cookie
+                            sess_token = create_session_token(uid)
+                            controller.set('user_session', f"{uid}:{sess_token}", max_age=2592000)  # 30 days
                             st.session_state.logged_out = False
-                            token = f"{st.session_state.user_id}:{sign_user_id(st.session_state.user_id)}"
-                            controller.set('user_session', token)
-                            if st.query_params:
-                                st.query_params.clear()
+                            st.query_params.clear()
                             st.session_state.active_menu = "Dashboard"
                             st.session_state.chatbot = None
                             st.session_state.messages = []
                             st.session_state.greeting_sent = False
-                            st.success(f"✅ Selamat datang kembali, **{user_row['name']}**! 🎉")
+                            st.success(f"\u2705 Selamat datang kembali, **{user_row['name']}**! \U0001f389")
                             time.sleep(0.8)
                             st.rerun()
                         else:
-                            st.markdown('<div class="danger-box">❌ Password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
-
+                            st.markdown('<div class="danger-box">❌ Username atau password salah. Silakan coba lagi.</div>', unsafe_allow_html=True)
 
         # -------- REGISTER TAB --------
         with auth_tab2:
@@ -1101,69 +1056,6 @@ selected_menu = st.radio(
     key="main_nav_radio",
     label_visibility="collapsed"
 )
-
-# ── Liquid Glass JS: shimmer overlay + active pulse animation ──
-st.markdown("""
-<script>
-(function applyLiquidGlass() {
-    const doc = window.parent.document;
-
-    function inject() {
-        const navRadio = doc.querySelector('[data-testid="stRadio"]');
-        if (!navRadio) return;
-
-        // Inject shimmer overlay if not already present
-        if (!navRadio.querySelector('.lg-navbar-shimmer')) {
-            const shimmer = doc.createElement('div');
-            shimmer.className = 'lg-navbar-shimmer';
-            navRadio.style.position = 'relative';
-            navRadio.insertBefore(shimmer, navRadio.firstChild);
-        }
-
-        // Add subtle floating animation to the navbar pill
-        navRadio.style.animation = 'lgFloat 6s ease-in-out infinite';
-
-        // Inject keyframes once
-        if (!doc.getElementById('lg-keyframes')) {
-            const style = doc.createElement('style');
-            style.id = 'lg-keyframes';
-            style.textContent = `
-                @keyframes lgFloat {
-                    0%, 100% { box-shadow: 0 2px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.08) inset, 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12); }
-                    50%       { box-shadow: 0 2px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.08) inset, 0 12px 40px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.16); transform: translateX(-50%) translateY(-1px); }
-                }
-                @keyframes lgActivePulse {
-                    0%, 100% { box-shadow: 0 2px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.12) inset, 0 6px 20px rgba(255,87,34,0.40), 0 2px 6px rgba(255,87,34,0.25); }
-                    50%       { box-shadow: 0 2px 0 rgba(255,255,255,0.40) inset, 0 -1px 0 rgba(0,0,0,0.12) inset, 0 8px 28px rgba(255,87,34,0.60), 0 3px 10px rgba(255,87,34,0.40); }
-                }
-            `;
-            doc.head.appendChild(style);
-        }
-
-        // Apply pulse to the currently active label
-        const labels = navRadio.querySelectorAll('label[data-baseweb="radio"]');
-        labels.forEach(label => {
-            const inp = label.querySelector('input');
-            if (inp && inp.checked) {
-                label.style.animation = 'lgActivePulse 3s ease-in-out infinite';
-            } else {
-                label.style.animation = '';
-            }
-        });
-    }
-
-    // Run immediately and after Streamlit re-renders
-    inject();
-    setTimeout(inject, 300);
-    setTimeout(inject, 800);
-    setTimeout(inject, 1500);
-
-    // Re-apply on DOM mutations (Streamlit hot-reloads)
-    const observer = new MutationObserver(() => { inject(); });
-    observer.observe(doc.body, { childList: true, subtree: true });
-})();
-</script>
-""", unsafe_allow_html=True)
 
 # Handle logout: open dialog only when user freshly selected Logout
 # (guard: skip if active_menu is already something else — stale radio state)
@@ -1989,7 +1881,7 @@ elif menu == "Food Log":
                         st.plotly_chart(fig, use_container_width=True)
                         
         # Educational Section
-        with st.expander("📚 Learn About Apriori Algorithm & Data Mining"):
+        with st.expander("📚 PLearn About Apriori Algorithm & Data Mining"):
             st.markdown("""
             ### What is Association Rule Mining & the Apriori Algorithm?
 
@@ -2586,137 +2478,5 @@ elif menu == "About":
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Hero card ──────────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("""
-        <div style="text-align:center; padding:0.5rem 0 1rem 0;">
-            <span style="font-size:3.5rem;">💪</span>
-            <h2 style="margin:0.4rem 0 0.2rem 0;">Smart Fitness &amp; Calorie Tracker</h2>
-            <p style="color:#8E8E93; margin:0;">Version 2.0.0 &nbsp;|&nbsp; Python · Streamlit · SQLite · Scikit-learn · Plotly · Groq API</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ── Key Features ───────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("### 🎯 Key Features")
-        feat_col1, feat_col2 = st.columns(2)
-        features = [
-            ("📊", "Personalized Calorie Tracking", "Menghitung BMR, TDEE, dan target harian berdasarkan profil kamu"),
-            ("🍽️", "Food Log", "Catat makanan yang dimakan setiap hari"),
-            ("🏃", "Activity Tracking", "Catat olahraga dengan kalkulasi pembakaran kalori otomatis (rumus MET)"),
-            ("🤖", "AI Fitness Chatbot", "Saran kebugaran personal (Groq Llama 3.3 70B atau rule-based fallback)"),
-            ("🔮", "ML Calorie Predictor", "Memprediksi kalori terbakar saat olahraga (Random Forest Regressor)"),
-            ("🏅", "Fitness Level Classifier", "Klasifikasi level kebugaran A/B/C/D (Random Forest, akurasi ~74.5%)"),
-            ("📈", "Progress Dashboard", "Grafik interaktif berat badan dan tren kalori harian"),
-            ("🔒", "Session Isolation", "Setiap user punya sesi mandiri berbasis browser cookies"),
-        ]
-        for i, (icon, title, desc) in enumerate(features):
-            col = feat_col1 if i % 2 == 0 else feat_col2
-            with col:
-                st.markdown(f"""
-                <div style="display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.9rem;">
-                    <span style="font-size:1.6rem; line-height:1.2;">{icon}</span>
-                    <div>
-                        <strong>{title}</strong><br>
-                        <span style="font-size:0.85rem; color:#8E8E93;">{desc}</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-    # ── How It Works ───────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("### 📋 Cara Penggunaan")
-        steps = [
-            ("1", "#4f46e5", "Setup Profile", "Masukkan usia, jenis kelamin, tinggi, berat, level aktivitas, dan tujuan kebugaran"),
-            ("2", "#0ea5e9", "Catat Harian", "Log makanan dan aktivitas sepanjang hari"),
-            ("3", "#10b981", "Pantau Progress", "Cek dashboard untuk melihat apakah kamu on-track"),
-            ("4", "#f59e0b", "Tanya AI Coach", "Gunakan chatbot untuk pertanyaan seputar kebugaran"),
-            ("5", "#ef4444", "Cek Fitness Level", "Input hasil tes fisik untuk mendapat klasifikasi kebugaran kamu"),
-        ]
-        for num, color, title, desc in steps:
-            st.markdown(f"""
-            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.85rem;">
-                <div style="min-width:2.2rem; height:2.2rem; border-radius:50%; background:{color};
-                            display:flex; align-items:center; justify-content:center;
-                            color:white; font-weight:700; font-size:1rem;">{num}</div>
-                <div><strong>{title}</strong> — <span style="font-size:0.9rem; color:#8E8E93;">{desc}</span></div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # ── Formulas ───────────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("### 🔬 Formula yang Digunakan")
-        f_col1, f_col2 = st.columns(2)
-        with f_col1:
-            st.markdown("""
-            **BMR (Mifflin-St Jeor)**
-            - Pria: `(10×BB) + (6.25×TB) - (5×Usia) + 5`
-            - Wanita: `(10×BB) + (6.25×TB) - (5×Usia) - 161`
-
-            **TDEE**
-            - `BMR × Activity Multiplier`
-            """)
-        with f_col2:
-            st.markdown("""
-            **Kalori Terbakar (MET)**
-            - `(MET × 3.5 × BB) / 200 × menit`
-
-            **ML Calorie Prediction**
-            - Random Forest Regressor
-
-            **ML Fitness Classification**
-            - Random Forest + StandardScaler
-            """)
-
-    # ── Dataset Info ───────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("### 📁 Informasi Dataset")
-        d_col1, d_col2 = st.columns(2)
-        with d_col1:
-            try:
-                food_df = pd.read_csv('data/food_dataset.csv')
-                st.success(f"✅ Food dataset: **{len(food_df):,}** items")
-            except:
-                st.info("📝 Food dataset akan dibuat otomatis")
-            try:
-                exercise_df = pd.read_csv('data/exercise_dataset.csv')
-                st.success(f"✅ Exercise dataset: **{len(exercise_df):,}** samples")
-            except:
-                st.info("📝 Exercise dataset akan dibuat otomatis")
-        with d_col2:
-            try:
-                body_df = pd.read_csv('data/body_performance.csv')
-                st.success(f"✅ Body performance dataset: **{len(body_df):,}** samples")
-                st.caption("Features: usia, gender, tinggi, berat, body fat %, tekanan darah, grip strength, fleksibilitas, sit-ups, broad jump → Target: kelas A/B/C/D")
-            except:
-                st.warning("⚠️ Body performance dataset tidak ditemukan. Fitness classifier mungkin tidak berfungsi.")
-
-    # ── Tips ───────────────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("### 💡 Tips untuk Hasil Terbaik")
-        tips_col1, tips_col2 = st.columns(2)
-        tips = [
-            "Catat semua yang kamu makan dan minum",
-            "Konsisten dalam tracking setiap hari",
-            "Update berat badan setiap minggu",
-            "Gunakan AI chatbot untuk saran personal",
-            "Cek progress secara rutin agar tetap termotivasi",
-            "Input hasil tes fisik yang jujur untuk klasifikasi akurat",
-        ]
-        for i, tip in enumerate(tips):
-            col = tips_col1 if i % 2 == 0 else tips_col2
-            with col:
-                st.markdown(f"✔️ {tip}")
-
-    # ── Footer ─────────────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("""
-        <div style="text-align:center; padding:0.5rem 0;">
-            <p style="margin:0; color:#8E8E93; font-size:0.9rem;">
-                Made with ❤️ for Final Project &nbsp;·&nbsp; Smart Fitness &amp; Food Tracker
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
 if __name__ == "__main__":
     pass
