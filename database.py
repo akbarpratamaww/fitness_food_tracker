@@ -16,18 +16,44 @@ DB_PATH = os.path.join(BASE_DIR, "data", "fitness_tracker.db")
 # Path database untuk dataset (bisa sama atau berbeda. Sesuaikan dengan file .db Anda)
 DATASET_DB_PATH = os.path.join(BASE_DIR, "data", "fitnessfoodtracker.db")   # ganti dengan nama file database Anda
 
+import threading
+
+# Thread-local storage to cache one connection per Streamlit thread
+local_data = threading.local()
+
 def get_connection():
     """Get database connection based on environment configurations."""
     db_type = os.getenv("DB_TYPE", "sqlite").lower()
     
     if db_type == "mysql":
         import mysql.connector
-        return mysql.connector.connect(
+        
+        # Check if this thread already has an active connection
+        if hasattr(local_data, "mysql_conn"):
+            try:
+                # Ping the server to ensure connection is alive, reconnect if dead
+                local_data.mysql_conn.ping(reconnect=True, attempts=1, delay=0)
+                return local_data.mysql_conn
+            except Exception:
+                pass # If ping/reconnect fails, we'll just create a new one below
+                
+        # Create a new connection for this thread
+        conn = mysql.connector.connect(
             host=os.getenv("DB_HOST", "localhost"),
             user=os.getenv("DB_USER", "root"),
             password=os.getenv("DB_PASSWORD", ""),
             database=os.getenv("DB_NAME", "fitness_tracker")
         )
+        
+        # Override the close method so that when app.py calls conn.close(),
+        # it doesn't actually close it, allowing us to reuse it for the next query!
+        conn._original_close = conn.close
+        conn.close = lambda: None
+        
+        # Save it to the thread's local storage
+        local_data.mysql_conn = conn
+        
+        return conn
     else:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         return sqlite3.connect(DB_PATH)
