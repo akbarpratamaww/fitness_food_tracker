@@ -655,10 +655,6 @@ if 'scroll_to_custom' not in st.session_state:
 if 'prefilled_custom_name' not in st.session_state:
     st.session_state.prefilled_custom_name = ""
 
-# Auth tab switch flag (used to auto-navigate to Register after username-not-found)
-if 'auth_goto_register' not in st.session_state:
-    st.session_state.auth_goto_register = False
-
 # ==================== AUTH GATE ====================
 if st.session_state.user_id is None:
 
@@ -700,15 +696,7 @@ if st.session_state.user_id is None:
                     if not login_username or not login_password:
                         st.markdown('<div class="warning-box">⚠️ Username dan password tidak boleh kosong.</div>', unsafe_allow_html=True)
                     elif not username_exists(login_username):
-                        # Username tidak ditemukan → arahkan ke Register
-                        st.session_state.auth_goto_register = True
-                        st.markdown("""
-                        <div class="warning-box">
-                            ⚠️ <strong>Username tidak ditemukan.</strong><br>
-                            Akun dengan username tersebut belum terdaftar. Silakan buat akun baru terlebih dahulu.
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.rerun()
+                        st.markdown('<div class="danger-box">❌ Username tidak ditemukan. Silakan ke tab <strong>Register</strong> untuk membuat akun.</div>', unsafe_allow_html=True)
                     else:
                         # Username ada — cek password
                         user_row = authenticate_user(login_username, login_password)
@@ -734,31 +722,8 @@ if st.session_state.user_id is None:
 
         # -------- REGISTER TAB --------
         with auth_tab2:
-            # If redirected from login (username not found), auto-switch to this tab via JS
-            if st.session_state.get('auth_goto_register', False):
-                st.session_state.auth_goto_register = False  # reset flag
-                st.markdown("""
-                <div class="info-box" style="margin-bottom:1rem;">
-                    ℹ️ <strong>Username tidak ditemukan.</strong> Silakan daftarkan akun baru di bawah ini.
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Execute JS properly using components.html to click the Register tab
-                import streamlit.components.v1 as components
-                components.html("""
-                <script>
-                (function switchToRegisterTab() {
-                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
-                    if (tabs.length >= 2) {
-                        tabs[1].click();
-                    }
-                })();
-                </script>
-                """, height=0, width=0)
-
             st.markdown('<br>', unsafe_allow_html=True)
             with st.container(border=True):
-
                 if st.session_state.reg_step == 0:
                     st.markdown('<div class="wizard-title">💪 Welcome to FitTrack AI</div>', unsafe_allow_html=True)
                     st.markdown('<div class="wizard-subtitle">Ready for some wins? Start tracking, it\'s easy! Let\'s customize FitTrack AI for your goals.</div>', unsafe_allow_html=True)
